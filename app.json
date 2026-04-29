@@ -40,7 +40,16 @@
           "icon": "./assets/icon.png",
           "color": "#1a3a5c"
         }
-      ]
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "O MindGuide usa a sua localização GPS para detectar beacons próximos e iniciar a navegação automaticamente.",
+          "locationAlwaysPermission": "O MindGuide usa a sua localização em segundo plano para detectar a proximidade de beacons.",
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ],
+      "expo-speech"
     ]
   }
 }

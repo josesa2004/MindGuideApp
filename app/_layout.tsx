@@ -1,4 +1,7 @@
 import '../src/i18n';
+// Register geofencing task before any component mounts
+import '../src/services/geofencing';
+
 import { useEffect } from 'react';
 import { Stack, router } from 'expo-router';
 import { useAuthStore } from '../src/store/authStore';
@@ -9,7 +12,7 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldShowBanner: true,
     shouldShowList: true,
-    shouldPlaySound: false,
+    shouldPlaySound: true,
     shouldSetBadge: false,
   }),
 });
@@ -30,6 +33,17 @@ export default function RootLayout() {
       }
     }
   }, [isLoading, isAuthenticated]);
+
+  // Deep-link into map screen when user taps a proximity notification
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      if (data?.screen === 'map' && isAuthenticated) {
+        router.push('/(tabs)/map');
+      }
+    });
+    return () => sub.remove();
+  }, [isAuthenticated]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

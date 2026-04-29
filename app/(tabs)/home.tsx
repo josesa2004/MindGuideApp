@@ -47,36 +47,41 @@ export default function HomeScreen() {
 
       {/* Quick actions */}
       <View style={s.actions}>
-        <TouchableOpacity style={s.actionCard} onPress={() => router.push('/(tabs)/map')}>
-          <Text style={s.actionIcon}>🗺️</Text>
+        <TouchableOpacity style={s.actionCard} onPress={() => router.push('/(tabs)/map')}
+          accessibilityRole="button" accessibilityLabel={t('map')}>
+          <Text style={s.actionIcon} accessibilityElementsHidden>🗺️</Text>
           <Text style={s.actionLabel}>{t('map')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.actionCard} onPress={() => router.push('/(tabs)/routes')}>
-          <Text style={s.actionIcon}>🧭</Text>
+        <TouchableOpacity style={s.actionCard} onPress={() => router.push('/(tabs)/routes')}
+          accessibilityRole="button" accessibilityLabel={t('routes')}>
+          <Text style={s.actionIcon} accessibilityElementsHidden>🧭</Text>
           <Text style={s.actionLabel}>{t('routes')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.actionCard} onPress={() => router.push('/(tabs)/profile')}>
-          <Text style={s.actionIcon}>👤</Text>
+        <TouchableOpacity style={s.actionCard} onPress={() => router.push('/(tabs)/profile')}
+          accessibilityRole="button" accessibilityLabel={t('profile')}>
+          <Text style={s.actionIcon} accessibilityElementsHidden>👤</Text>
           <Text style={s.actionLabel}>{t('profile')}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Destination list */}
-      <Text style={s.sectionTitle}>{t('selectDestination')}</Text>
+      <Text style={s.sectionTitle} accessibilityRole="header">{t('selectDestination')}</Text>
       {loading ? (
-        <ActivityIndicator color="#a0c4e8" style={{ marginTop: 24 }} />
+        <ActivityIndicator color="#a0c4e8" style={{ marginTop: 24 }} accessibilityLabel="A carregar salas" />
       ) : (
         rooms.map((room) => (
           <TouchableOpacity
             key={room.id}
             style={s.roomCard}
             onPress={() => router.push({ pathname: '/(tabs)/routes', params: { roomId: room.id, roomName: room.name } })}
+            accessibilityRole="button"
+            accessibilityLabel={`${room.name}, piso ${room.floorLevel}. Toque para ver rotas.`}
           >
             <View style={s.roomInfo}>
               <Text style={s.roomName}>{room.name}</Text>
               <Text style={s.roomFloor}>{t('floor')} {room.floorLevel}</Text>
             </View>
-            <Text style={s.roomArrow}>›</Text>
+            <Text style={s.roomArrow} accessibilityElementsHidden>›</Text>
           </TouchableOpacity>
         ))
       )}
