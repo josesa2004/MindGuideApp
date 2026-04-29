@@ -67,20 +67,20 @@ export default function FeedbackScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1a3a5c' },
-  content: { padding: 24 },
-  backBtn: { marginBottom: 16 },
-  backText: { color: '#a0c4e8', fontSize: 16 },
-  title: { fontSize: 22, fontWeight: 'bold', color: '#fff', marginBottom: 20 },
-  card: { backgroundColor: '#fff', borderRadius: 16, padding: 24 },
+  container: { flex: 1, backgroundColor: '#fff' },
+  content: { padding: 24, paddingTop: 56 },
+  backBtn: { marginBottom: 20 },
+  backText: { color: '#2f80ed', fontSize: 16, fontWeight: '600' },
+  title: { fontSize: 22, fontWeight: '700', color: '#333', marginBottom: 24 },
+  card: { backgroundColor: '#f9f9f9', borderRadius: 14, padding: 20 },
   label: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 10 },
   stars: { flexDirection: 'row', gap: 8, marginBottom: 20 },
   star: { fontSize: 36, color: '#ddd' },
   starActive: { color: '#f5a623' },
   textarea: {
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 10,
-    padding: 12, fontSize: 15, color: '#333', minHeight: 120, marginBottom: 20,
+    borderWidth: 1, borderColor: '#eee', borderRadius: 12, backgroundColor: '#fff',
+    padding: 14, fontSize: 15, color: '#333', minHeight: 120, marginBottom: 20,
   },
-  btn: { backgroundColor: '#1a3a5c', borderRadius: 10, padding: 14, alignItems: 'center' },
-  btnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  btn: { backgroundColor: '#2f80ed', borderRadius: 25, padding: 16, alignItems: 'center' },
+  btnText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 });

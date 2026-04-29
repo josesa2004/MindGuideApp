@@ -35,14 +35,14 @@ export default function FaqScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1a3a5c' },
-  content: { padding: 24 },
-  backBtn: { marginBottom: 16 },
-  backText: { color: '#a0c4e8', fontSize: 16 },
-  title: { fontSize: 22, fontWeight: 'bold', color: '#fff', marginBottom: 20 },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 10 },
+  container: { flex: 1, backgroundColor: '#fff' },
+  content: { padding: 24, paddingTop: 56 },
+  backBtn: { marginBottom: 20 },
+  backText: { color: '#2f80ed', fontSize: 16, fontWeight: '600' },
+  title: { fontSize: 22, fontWeight: '700', color: '#333', marginBottom: 24 },
+  card: { backgroundColor: '#f9f9f9', borderRadius: 12, padding: 16, marginBottom: 10 },
   qRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  q: { fontSize: 15, fontWeight: '600', color: '#1a3a5c', flex: 1, marginRight: 8 },
-  chevron: { color: '#1a3a5c', fontSize: 12 },
-  a: { fontSize: 14, color: '#555', lineHeight: 22, marginTop: 10 },
+  q: { fontSize: 15, fontWeight: '600', color: '#333', flex: 1, marginRight: 8 },
+  chevron: { color: '#2f80ed', fontSize: 14, fontWeight: '700' },
+  a: { fontSize: 14, color: '#666', lineHeight: 22, marginTop: 10 },
 });

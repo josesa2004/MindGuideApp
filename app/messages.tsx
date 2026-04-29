@@ -34,7 +34,7 @@ export default function MessagesScreen() {
       <Text style={s.title}>{t('myMessages')}</Text>
 
       {loading ? (
-        <ActivityIndicator color="#a0c4e8" style={{ marginTop: 32 }} />
+        <ActivityIndicator color="#2f80ed" style={{ marginTop: 32 }} />
       ) : items.length === 0 ? (
         <Text style={s.empty}>{t('noFeedback')}</Text>
       ) : (
@@ -63,20 +63,20 @@ export default function MessagesScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1a3a5c' },
-  content: { padding: 24 },
-  backBtn: { marginBottom: 16 },
-  backText: { color: '#a0c4e8', fontSize: 16 },
-  title: { fontSize: 22, fontWeight: 'bold', color: '#fff', marginBottom: 20 },
-  empty: { color: '#a0c4e8', textAlign: 'center', marginTop: 40, fontSize: 15 },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 12 },
+  container: { flex: 1, backgroundColor: '#fff' },
+  content: { padding: 24, paddingTop: 56 },
+  backBtn: { marginBottom: 20 },
+  backText: { color: '#2f80ed', fontSize: 16, fontWeight: '600' },
+  title: { fontSize: 22, fontWeight: '700', color: '#333', marginBottom: 24 },
+  empty: { color: '#999', textAlign: 'center', marginTop: 40, fontSize: 15 },
+  card: { backgroundColor: '#f9f9f9', borderRadius: 12, padding: 16, marginBottom: 12 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
   star: { fontSize: 18, color: '#ddd' },
   starActive: { color: '#f5a623' },
   date: { marginLeft: 'auto', fontSize: 12, color: '#999' },
   comment: { fontSize: 15, color: '#333', lineHeight: 22, marginBottom: 10 },
-  replyBox: { backgroundColor: '#f0f4f8', borderRadius: 8, padding: 12 },
-  replyLabel: { fontSize: 11, fontWeight: '700', color: '#1a3a5c', marginBottom: 4, textTransform: 'uppercase' },
+  replyBox: { backgroundColor: '#EBF5FB', borderRadius: 8, padding: 12 },
+  replyLabel: { fontSize: 11, fontWeight: '700', color: '#2f80ed', marginBottom: 4, textTransform: 'uppercase' },
   replyText: { fontSize: 14, color: '#333', lineHeight: 20 },
   noReply: { fontSize: 13, color: '#999', fontStyle: 'italic' },
 });

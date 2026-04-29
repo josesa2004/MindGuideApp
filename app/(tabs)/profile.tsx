@@ -99,133 +99,145 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={s.container}>
-      {/* Header */}
+      {/* Profile header — white, centered */}
       <View style={s.header}>
         <View style={s.avatar}><Text style={s.avatarText}>{(displayName ?? 'U')[0].toUpperCase()}</Text></View>
         <Text style={s.name}>{displayName}</Text>
         <Text style={s.email}>{email}</Text>
-        {saving && <ActivityIndicator color="#a0c4e8" style={{ marginTop: 6 }} />}
+        {saving && <ActivityIndicator color="#2f80ed" style={{ marginTop: 6 }} />}
       </View>
 
-      {/* Accessibility */}
-      <Text style={s.sectionTitle}>{t('accessibilityMode')}</Text>
-      <View style={s.card}>
-        <View style={s.mobilityRow}>
-          {MOBILITY_OPTIONS.map((opt) => (
-            <TouchableOpacity
-              key={opt.value}
-              style={[s.chip, accessibilityMode === opt.value && s.chipActive]}
-              onPress={() => changeMobility(opt.value)}
-            >
-              <Text style={[s.chipText, accessibilityMode === opt.value && s.chipTextActive]}>
-                {t(opt.key)}
-              </Text>
-            </TouchableOpacity>
-          ))}
+      {/* Menu list — styled like old demo */}
+      <View style={s.menu}>
+
+        {/* Accessibility */}
+        <Text style={s.sectionTitle}>{t('accessibilityMode')}</Text>
+        <View style={s.card}>
+          <View style={s.mobilityRow}>
+            {MOBILITY_OPTIONS.map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[s.chip, accessibilityMode === opt.value && s.chipActive]}
+                onPress={() => changeMobility(opt.value)}
+              >
+                <Text style={[s.chipText, accessibilityMode === opt.value && s.chipTextActive]}>
+                  {t(opt.key)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
-      </View>
 
-      {/* Language */}
-      <Text style={s.sectionTitle}>{t('language')}</Text>
-      <View style={s.card}>
-        <View style={s.row}>
-          <Text style={s.rowLabel}>{language === 'pt' ? '🇵🇹 Português' : '🇬🇧 English'}</Text>
-          <TouchableOpacity style={s.toggleBtn} onPress={toggleLanguage}>
-            <Text style={s.toggleBtnText}>{language === 'pt' ? 'Switch to EN' : 'Mudar para PT'}</Text>
+        {/* Language */}
+        <Text style={s.sectionTitle}>{t('language')}</Text>
+        <View style={s.card}>
+          <View style={s.row}>
+            <Text style={s.rowLabel}>{language === 'pt' ? '🇵🇹 Português' : '🇬🇧 English'}</Text>
+            <TouchableOpacity style={s.toggleBtn} onPress={toggleLanguage}>
+              <Text style={s.toggleBtnText}>{language === 'pt' ? 'Switch to EN' : 'Mudar para PT'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Notifications */}
+        <Text style={s.sectionTitle}>{t('notifications')}</Text>
+        <View style={s.card}>
+          <View style={s.row}>
+            <Text style={s.rowLabel}>{t('notifications')}</Text>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={toggleNotifications}
+              thumbColor={notificationsEnabled ? '#2f80ed' : '#ccc'}
+              trackColor={{ false: '#ddd', true: '#90bef5' }}
+            />
+          </View>
+        </View>
+
+        {/* Admin tools */}
+        {isAdmin && (
+          <>
+            <Text style={s.sectionTitle}>Administração</Text>
+            <View style={s.menuBlock}>
+              <MenuRow icon="🗺️" label="Editar coordenadas dos beacons" onPress={() => router.push('/admin-beacons')} last />
+            </View>
+          </>
+        )}
+
+        {/* Links */}
+        <Text style={s.sectionTitle}>Mais</Text>
+        <View style={s.menuBlock}>
+          <MenuRow icon="💬" label={t('feedback')} onPress={() => router.push('/feedback')} />
+          <MenuRow icon="📩" label={t('myMessages')} onPress={() => router.push('/messages')} />
+          <MenuRow icon="❓" label={t('faq')} onPress={() => router.push('/faq')} />
+          <MenuRow icon="📋" label={t('rgpd')} onPress={() => router.push('/rgpd')} last />
+        </View>
+
+        {/* Actions */}
+        <View style={s.dangerZone}>
+          <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
+            <Text style={s.logoutText}>{t('logout')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.deleteBtn} onPress={handleDeleteAccount}>
+            <Text style={s.deleteText}>{t('deleteAccount')}</Text>
           </TouchableOpacity>
         </View>
+        <View style={{ height: 40 }} />
       </View>
-
-      {/* Notifications */}
-      <Text style={s.sectionTitle}>{t('notifications')}</Text>
-      <View style={s.card}>
-        <View style={s.row}>
-          <Text style={s.rowLabel}>{t('notifications')}</Text>
-          <Switch
-            value={notificationsEnabled}
-            onValueChange={toggleNotifications}
-            thumbColor={notificationsEnabled ? '#1a3a5c' : '#ccc'}
-            trackColor={{ false: '#ddd', true: '#a0c4e8' }}
-          />
-        </View>
-      </View>
-
-      {/* Admin tools */}
-      {isAdmin && (
-        <>
-          <Text style={s.sectionTitle}>Administração</Text>
-          <View style={s.card}>
-            <MenuItem label="🗺️ Editar coordenadas dos beacons" onPress={() => router.push('/admin-beacons')} last />
-          </View>
-        </>
-      )}
-
-      {/* Links */}
-      <Text style={s.sectionTitle}>Mais</Text>
-      <View style={s.card}>
-        <MenuItem label={t('feedback')} onPress={() => router.push('/feedback')} />
-        <MenuItem label={t('myMessages')} onPress={() => router.push('/messages')} />
-        <MenuItem label={t('faq')} onPress={() => router.push('/faq')} />
-        <MenuItem label={t('rgpd')} onPress={() => router.push('/rgpd')} last />
-      </View>
-
-      {/* Actions */}
-      <View style={s.dangerZone}>
-        <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
-          <Text style={s.logoutText}>{t('logout')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.deleteBtn} onPress={handleDeleteAccount}>
-          <Text style={s.deleteText}>{t('deleteAccount')}</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={{ height: 32 }} />
     </ScrollView>
   );
 }
 
-function MenuItem({ label, onPress, last }: { label: string; onPress: () => void; last?: boolean }) {
+function MenuRow({ icon, label, onPress, last }: { icon: string; label: string; onPress: () => void; last?: boolean }) {
   return (
     <TouchableOpacity style={[ms.item, last && { borderBottomWidth: 0 }]} onPress={onPress}>
+      <View style={ms.iconBg}><Text style={ms.iconText}>{icon}</Text></View>
       <Text style={ms.label}>{label}</Text>
-      <Text style={ms.arrow}>›</Text>
+      <Text style={ms.chevron}>›</Text>
     </TouchableOpacity>
   );
 }
 
 const ms = StyleSheet.create({
   item: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: 14,
     paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
   },
-  label: { fontSize: 15, color: '#333' },
-  arrow: { fontSize: 20, color: '#ccc' },
+  iconBg: {
+    width: 40, height: 40, borderRadius: 10, backgroundColor: '#EBF5FB',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  iconText: { fontSize: 18 },
+  label: { flex: 1, fontSize: 15, fontWeight: '600', color: '#333' },
+  chevron: { fontSize: 20, color: '#ccc' },
 });
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f4f8' },
+  container: { flex: 1, backgroundColor: '#fff' },
   header: {
-    backgroundColor: '#1a3a5c', paddingTop: 52, paddingBottom: 24,
-    alignItems: 'center',
+    backgroundColor: '#fff', paddingTop: 52, paddingBottom: 24,
+    alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
   },
   avatar: {
-    width: 72, height: 72, borderRadius: 36, backgroundColor: '#fff',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+    width: 96, height: 96, borderRadius: 48, backgroundColor: '#e0e0e0',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 14,
   },
-  avatarText: { fontSize: 30, fontWeight: 'bold', color: '#1a3a5c' },
-  name: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
-  email: { fontSize: 13, color: '#a0c4e8', marginTop: 4 },
+  avatarText: { fontSize: 38, fontWeight: 'bold', color: '#999' },
+  name: { fontSize: 22, fontWeight: '700', color: '#333' },
+  email: { fontSize: 13, color: '#999', marginTop: 4 },
+  menu: { padding: 20 },
   sectionTitle: {
-    color: '#666', fontSize: 12, fontWeight: '700', letterSpacing: 0.8,
-    textTransform: 'uppercase', marginLeft: 16, marginTop: 20, marginBottom: 6,
+    color: '#999', fontSize: 12, fontWeight: '700', letterSpacing: 1,
+    textTransform: 'uppercase', marginTop: 20, marginBottom: 8,
   },
-  card: { backgroundColor: '#fff', marginHorizontal: 16, borderRadius: 14, paddingHorizontal: 16 },
+  card: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#f0f0f0', paddingHorizontal: 16 },
+  menuBlock: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#f0f0f0', paddingHorizontal: 16 },
   mobilityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 14 },
   chip: {
-    borderWidth: 1, borderColor: '#1a3a5c', borderRadius: 20,
-    paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 2, borderColor: '#2f80ed', borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 7,
   },
-  chipActive: { backgroundColor: '#1a3a5c' },
-  chipText: { fontSize: 13, color: '#1a3a5c' },
+  chipActive: { backgroundColor: '#2f80ed' },
+  chipText: { fontSize: 13, color: '#2f80ed', fontWeight: '600' },
   chipTextActive: { color: '#fff' },
   row: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -233,19 +245,19 @@ const s = StyleSheet.create({
   },
   rowLabel: { fontSize: 15, color: '#333' },
   toggleBtn: {
-    borderWidth: 1, borderColor: '#1a3a5c', borderRadius: 16,
-    paddingHorizontal: 12, paddingVertical: 5,
+    borderWidth: 2, borderColor: '#2f80ed', borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 6,
   },
-  toggleBtnText: { color: '#1a3a5c', fontSize: 12, fontWeight: '600' },
-  dangerZone: { marginHorizontal: 16, marginTop: 24, gap: 10 },
+  toggleBtnText: { color: '#2f80ed', fontSize: 12, fontWeight: '600' },
+  dangerZone: { marginTop: 24, gap: 10 },
   logoutBtn: {
-    backgroundColor: '#fff', borderRadius: 12, padding: 14, alignItems: 'center',
-    borderWidth: 1, borderColor: '#1a3a5c',
+    backgroundColor: '#fff', borderRadius: 25, padding: 14, alignItems: 'center',
+    borderWidth: 2, borderColor: '#2f80ed',
   },
-  logoutText: { color: '#1a3a5c', fontWeight: '600', fontSize: 15 },
+  logoutText: { color: '#2f80ed', fontWeight: '600', fontSize: 15 },
   deleteBtn: {
-    backgroundColor: '#fff', borderRadius: 12, padding: 14, alignItems: 'center',
-    borderWidth: 1, borderColor: '#c0392b',
+    backgroundColor: '#fff', borderRadius: 25, padding: 14, alignItems: 'center',
+    borderWidth: 2, borderColor: '#E74C3C',
   },
-  deleteText: { color: '#c0392b', fontWeight: '600', fontSize: 15 },
+  deleteText: { color: '#E74C3C', fontWeight: '600', fontSize: 15 },
 });

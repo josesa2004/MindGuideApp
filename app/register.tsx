@@ -39,18 +39,17 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={s.container} contentContainerStyle={s.content}>
+    <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={s.splash}>
         <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
           <Text style={s.backText}>← {t('back')}</Text>
         </TouchableOpacity>
+        <View style={s.logoCircle}><Text style={s.logoText}>MG</Text></View>
+        <Text style={s.title}>{t('register')}</Text>
+      </View>
 
-        <View style={s.logoRow}>
-          <View style={s.logoCircle}><Text style={s.logoText}>MG</Text></View>
-          <Text style={s.title}>{t('register')}</Text>
-        </View>
-
-        <View style={s.form}>
+      <ScrollView style={s.card} contentContainerStyle={s.cardContent} keyboardShouldPersistTaps="handled">
+        <View>
           <Text style={s.label}>{t('name')} *</Text>
           <TextInput style={s.input} value={name} onChangeText={setName}
             placeholder="João Silva" placeholderTextColor="#999" />
@@ -94,36 +93,38 @@ export default function RegisterScreen() {
   );
 }
 
+
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1a3a5c' },
-  content: { padding: 24 },
-  backBtn: { marginBottom: 16 },
-  backText: { color: '#a0c4e8', fontSize: 16 },
-  logoRow: { alignItems: 'center', marginBottom: 24 },
+  root: { flex: 1, backgroundColor: '#2f80ed' },
+  splash: { paddingTop: 60, paddingBottom: 32, paddingHorizontal: 24, alignItems: 'center' },
+  backBtn: { alignSelf: 'flex-start', marginBottom: 20 },
+  backText: { color: 'rgba(255,255,255,0.85)', fontSize: 16 },
   logoCircle: {
     width: 64, height: 64, borderRadius: 32,
     backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginBottom: 12,
   },
-  logoText: { fontSize: 22, fontWeight: 'bold', color: '#1a3a5c' },
+  logoText: { fontSize: 22, fontWeight: 'bold', color: '#2f80ed' },
   title: { fontSize: 22, fontWeight: 'bold', color: '#fff' },
-  form: { backgroundColor: '#fff', borderRadius: 16, padding: 24 },
+  card: { flex: 1, backgroundColor: '#fff', borderTopLeftRadius: 30, borderTopRightRadius: 30 },
+  cardContent: { padding: 28, paddingTop: 32, paddingBottom: 40 },
   label: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 6 },
   input: {
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 10,
-    padding: 12, marginBottom: 16, fontSize: 16, color: '#333',
+    borderWidth: 1, borderColor: '#eee', borderRadius: 12,
+    padding: 14, paddingLeft: 16, marginBottom: 16, fontSize: 15,
+    color: '#333', backgroundColor: '#fcfcfc',
   },
   mobilityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
   mobilityChip: {
-    borderWidth: 1, borderColor: '#1a3a5c', borderRadius: 20,
-    paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 2, borderColor: '#2f80ed', borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 7,
   },
-  mobilityChipActive: { backgroundColor: '#1a3a5c' },
-  mobilityText: { fontSize: 13, color: '#1a3a5c' },
+  mobilityChipActive: { backgroundColor: '#2f80ed' },
+  mobilityText: { fontSize: 13, color: '#2f80ed', fontWeight: '600' },
   mobilityTextActive: { color: '#fff' },
   btn: {
-    backgroundColor: '#1a3a5c', borderRadius: 10,
-    padding: 14, alignItems: 'center', marginTop: 8,
+    backgroundColor: '#2f80ed', borderRadius: 25,
+    padding: 16, alignItems: 'center', marginTop: 4, marginBottom: 4,
   },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  link: { textAlign: 'center', color: '#1a3a5c', marginTop: 16, fontSize: 14 },
+  btnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  link: { textAlign: 'center', color: '#2f80ed', marginTop: 16, fontSize: 14, fontWeight: '600' },
 });

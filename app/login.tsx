@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Image,
+  StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -28,8 +28,9 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={s.header}>
+    <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* Blue splash top */}
+      <View style={s.splash}>
         <View style={s.logoCircle}>
           <Text style={s.logoText}>MG</Text>
         </View>
@@ -37,7 +38,8 @@ export default function LoginScreen() {
         <Text style={s.subtitle}>{t('loginSubtitle')}</Text>
       </View>
 
-      <View style={s.form}>
+      {/* White form card */}
+      <ScrollView style={s.card} contentContainerStyle={s.cardContent} keyboardShouldPersistTaps="handled">
         <Text style={s.label}>{t('email')}</Text>
         <TextInput
           style={s.input}
@@ -66,31 +68,36 @@ export default function LoginScreen() {
         <TouchableOpacity onPress={() => router.push('/register')}>
           <Text style={s.link}>{t('noAccount')}</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1a3a5c', justifyContent: 'center', padding: 24 },
-  header: { alignItems: 'center', marginBottom: 40 },
+  root: { flex: 1, backgroundColor: '#2f80ed' },
+  splash: { alignItems: 'center', paddingTop: 80, paddingBottom: 40, paddingHorizontal: 24 },
   logoCircle: {
     width: 80, height: 80, borderRadius: 40,
     backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginBottom: 16,
   },
-  logoText: { fontSize: 28, fontWeight: 'bold', color: '#1a3a5c' },
+  logoText: { fontSize: 28, fontWeight: 'bold', color: '#2f80ed' },
   title: { fontSize: 24, fontWeight: 'bold', color: '#fff', textAlign: 'center' },
-  subtitle: { fontSize: 14, color: '#a0c4e8', marginTop: 4, textAlign: 'center' },
-  form: { backgroundColor: '#fff', borderRadius: 16, padding: 24 },
+  subtitle: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginTop: 4, textAlign: 'center' },
+  card: {
+    flex: 1, backgroundColor: '#fff',
+    borderTopLeftRadius: 30, borderTopRightRadius: 30,
+  },
+  cardContent: { padding: 28, paddingTop: 32 },
   label: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 6 },
   input: {
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 10,
-    padding: 12, marginBottom: 16, fontSize: 16, color: '#333',
+    borderWidth: 1, borderColor: '#eee', borderRadius: 12,
+    padding: 14, paddingLeft: 16, marginBottom: 16, fontSize: 15,
+    color: '#333', backgroundColor: '#fcfcfc',
   },
   btn: {
-    backgroundColor: '#1a3a5c', borderRadius: 10,
-    padding: 14, alignItems: 'center', marginTop: 4,
+    backgroundColor: '#2f80ed', borderRadius: 25,
+    padding: 16, alignItems: 'center', marginTop: 4, marginBottom: 4,
   },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  link: { textAlign: 'center', color: '#1a3a5c', marginTop: 16, fontSize: 14 },
+  btnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  link: { textAlign: 'center', color: '#2f80ed', marginTop: 16, fontSize: 14, fontWeight: '600' },
 });

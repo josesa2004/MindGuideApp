@@ -24,12 +24,12 @@ function buildRouteHtml(route: RouteDetail): string {
   let coords: [number, number][] = [];
   try { coords = JSON.parse(route.coordinatesJson); } catch {}
   const polylineJs = coords.length > 1
-    ? `var poly = L.polyline(${JSON.stringify(coords)}, {color:'#1a3a5c',weight:5,opacity:0.8}).addTo(map);
+    ? `var poly = L.polyline(${JSON.stringify(coords)}, {color:'#2f80ed',weight:5,opacity:0.9,dashArray:'8,6'}).addTo(map);
        map.fitBounds(poly.getBounds(), {padding:[30,30]});`
     : `map.setView([${ISEP_CENTER[0]},${ISEP_CENTER[1]}],18);`;
   const markerJs = coords.length > 0
-    ? `L.marker([${coords[0][0]},${coords[0][1]}]).addTo(map).bindPopup('Início').openPopup();
-       L.marker([${coords[coords.length-1][0]},${coords[coords.length-1][1]}]).addTo(map).bindPopup('Destino');`
+    ? `L.circleMarker([${coords[0][0]},${coords[0][1]}],{radius:8,color:'#2f80ed',fillColor:'#fff',fillOpacity:1,weight:3}).addTo(map).bindPopup('Início').openPopup();
+       L.circleMarker([${coords[coords.length-1][0]},${coords[coords.length-1][1]}],{radius:8,color:'#E74C3C',fillColor:'#E74C3C',fillOpacity:1,weight:2}).addTo(map).bindPopup('Destino');`
     : '';
 
   return `<!DOCTYPE html><html><head>
@@ -198,7 +198,7 @@ export default function RoutesScreen() {
       </View>
 
       {loadingList ? (
-        <View style={s.center}><ActivityIndicator color="#1a3a5c" size="large" accessibilityLabel="A carregar rotas" /></View>
+        <View style={s.center}><ActivityIndicator color="#2f80ed" size="large" accessibilityLabel="A carregar rotas" /></View>
       ) : (
         <ScrollView>
           {routes.length === 0 && (
@@ -217,7 +217,7 @@ export default function RoutesScreen() {
                 <Text style={s.routeName}>{r.name}</Text>
                 {r.roomName ? <Text style={s.routeSub}>{r.roomCode} — {r.roomName}</Text> : null}
               </View>
-              {loadingDetail ? <ActivityIndicator color="#1a3a5c" /> : <Text style={s.arrow} accessibilityElementsHidden>›</Text>}
+              {loadingDetail ? <ActivityIndicator color="#2f80ed" /> : <Text style={s.arrow} accessibilityElementsHidden>›</Text>}
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -227,49 +227,49 @@ export default function RoutesScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f4f8' },
+  container: { flex: 1, backgroundColor: '#fff' },
   header: {
-    backgroundColor: '#1a3a5c', paddingTop: 52, paddingBottom: 14,
-    paddingHorizontal: 16,
+    backgroundColor: '#fff', paddingTop: 52, paddingBottom: 14,
+    paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
   },
   backBtn: { marginBottom: 8 },
-  backText: { color: '#a0c4e8', fontSize: 14 },
-  title: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  subtitle: { color: '#a0c4e8', fontSize: 13, marginTop: 4 },
+  backText: { color: '#2f80ed', fontSize: 14, fontWeight: '600' },
+  title: { color: '#333', fontSize: 22, fontWeight: '700' },
+  subtitle: { color: '#999', fontSize: 13, marginTop: 4 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  empty: { textAlign: 'center', color: '#666', marginTop: 40, fontSize: 15 },
+  empty: { textAlign: 'center', color: '#999', marginTop: 40, fontSize: 15 },
   routeCard: {
-    backgroundColor: '#fff', marginHorizontal: 16, marginTop: 12,
-    borderRadius: 14, padding: 16, flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#f9f9f9', marginHorizontal: 16, marginTop: 12,
+    borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center',
   },
   routeInfo: { flex: 1 },
-  routeName: { fontSize: 16, fontWeight: '600', color: '#1a3a5c' },
-  routeSub: { fontSize: 13, color: '#666', marginTop: 2 },
-  arrow: { fontSize: 24, color: '#1a3a5c', opacity: 0.4 },
+  routeName: { fontSize: 15, fontWeight: '600', color: '#333' },
+  routeSub: { fontSize: 12, color: '#999', marginTop: 2 },
+  arrow: { fontSize: 20, color: '#ccc' },
   stepsContainer: { flex: 1, padding: 16 },
   arrivedCard: {
-    backgroundColor: '#d4edda', borderRadius: 14, padding: 20, alignItems: 'center', marginBottom: 16,
+    backgroundColor: '#EBF5FB', borderRadius: 14, padding: 20, alignItems: 'center', marginBottom: 16,
   },
-  arrivedText: { fontSize: 18, fontWeight: 'bold', color: '#155724' },
-  stepCard: { backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 16 },
-  stepLabel: { fontSize: 12, color: '#666', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6 },
-  stepInstruction: { fontSize: 17, fontWeight: '600', color: '#1a3a5c', lineHeight: 24, marginBottom: 16 },
+  arrivedText: { fontSize: 18, fontWeight: 'bold', color: '#2f80ed' },
+  stepCard: { backgroundColor: '#f9f9f9', borderRadius: 12, padding: 16, marginBottom: 16 },
+  stepLabel: { fontSize: 12, color: '#999', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6 },
+  stepInstruction: { fontSize: 17, fontWeight: '600', color: '#333', lineHeight: 26, marginBottom: 16 },
   stepBtns: { flexDirection: 'row', gap: 10 },
-  prevBtn: { flex: 1, borderWidth: 1, borderColor: '#1a3a5c', borderRadius: 10, padding: 12, alignItems: 'center' },
-  prevBtnText: { color: '#1a3a5c', fontWeight: '600' },
-  nextBtn: { flex: 1, backgroundColor: '#1a3a5c', borderRadius: 10, padding: 12, alignItems: 'center' },
+  prevBtn: { flex: 1, borderWidth: 2, borderColor: '#2f80ed', borderRadius: 20, padding: 12, alignItems: 'center' },
+  prevBtnText: { color: '#2f80ed', fontWeight: '600' },
+  nextBtn: { flex: 1, backgroundColor: '#2f80ed', borderRadius: 20, padding: 12, alignItems: 'center' },
   nextBtnText: { color: '#fff', fontWeight: '600' },
-  allStepsLabel: { fontSize: 12, color: '#666', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
+  allStepsLabel: { fontSize: 12, color: '#999', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
   stepRow: {
     flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10,
-    backgroundColor: '#fff', borderRadius: 10, padding: 12, gap: 12,
+    backgroundColor: '#f9f9f9', borderRadius: 10, padding: 12, gap: 12,
   },
-  stepRowActive: { backgroundColor: '#e8f0f8', borderLeftWidth: 3, borderLeftColor: '#1a3a5c' },
+  stepRowActive: { backgroundColor: '#EBF5FB', borderLeftWidth: 3, borderLeftColor: '#2f80ed' },
   stepDot: {
     width: 28, height: 28, borderRadius: 14, backgroundColor: '#e0e0e0',
     alignItems: 'center', justifyContent: 'center',
   },
-  stepDotActive: { backgroundColor: '#1a3a5c' },
+  stepDotActive: { backgroundColor: '#2f80ed' },
   stepDotText: { fontSize: 12, fontWeight: 'bold', color: '#666' },
   stepDotTextActive: { color: '#fff' },
   stepRowText: { flex: 1, fontSize: 14, color: '#333', lineHeight: 20 },

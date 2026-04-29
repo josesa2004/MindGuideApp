@@ -28,7 +28,7 @@ function buildLeafletHtml(beacons: Beacon[], floor: number): string {
     .map(
       (b) =>
         `L.circleMarker([${b.latitude}, ${b.longitude}], {
-          radius: 14, color: '#1a3a5c', fillColor: '#4a9ade', fillOpacity: 0.9, weight: 2
+          radius: 14, color: '#2f80ed', fillColor: '#5da6f5', fillOpacity: 0.9, weight: 2
         }).addTo(map)
          .bindPopup('<b>${b.name}</b><br/>Piso ${b.floor}')
          .on('click', () => window.ReactNativeWebView.postMessage(
@@ -188,7 +188,7 @@ export default function MapScreen() {
 
       {loading ? (
         <View style={s.center}>
-          <ActivityIndicator color="#1a3a5c" size="large" accessibilityLabel="A carregar mapa" />
+          <ActivityIndicator color="#2f80ed" size="large" accessibilityLabel="A carregar mapa" />
         </View>
       ) : isBlind ? (
         /* Accessible list mode for blind users — replaces the WebView */
@@ -211,7 +211,7 @@ export default function MapScreen() {
                 <Text style={s.beaconFloor}>Piso {beacon.floor}</Text>
               </View>
               {locating ? (
-                <ActivityIndicator color="#1a3a5c" />
+                <ActivityIndicator color="#2f80ed" />
               ) : (
                 <Text style={s.beaconArrow} accessibilityElementsHidden>›</Text>
               )}
@@ -230,7 +230,7 @@ export default function MapScreen() {
           startInLoadingState
           accessibilityLabel="Mapa ISEP"
           renderLoading={() => (
-            <View style={s.center}><ActivityIndicator color="#1a3a5c" /></View>
+            <View style={s.center}><ActivityIndicator color="#2f80ed" /></View>
           )}
         />
       )}
@@ -246,49 +246,50 @@ export default function MapScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f4f8' },
+  container: { flex: 1, backgroundColor: '#fff' },
   header: {
-    backgroundColor: '#1a3a5c', paddingTop: 52, paddingBottom: 12,
+    backgroundColor: '#fff', paddingTop: 52, paddingBottom: 12,
     paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
   },
-  title: { color: '#fff', fontSize: 15, fontWeight: 'bold', flex: 1 },
+  title: { color: '#333', fontSize: 20, fontWeight: '700', flex: 1 },
   headerBtns: { flexDirection: 'row', gap: 8 },
   simBtn: {
-    borderWidth: 1, borderColor: '#a0c4e8', borderRadius: 20,
+    borderWidth: 2, borderColor: '#2f80ed', borderRadius: 20,
     paddingHorizontal: 10, paddingVertical: 5,
   },
-  simBtnActive: { backgroundColor: '#4a9ade', borderColor: '#4a9ade' },
-  simBtnText: { color: '#a0c4e8', fontSize: 12 },
+  simBtnActive: { backgroundColor: '#2f80ed', borderColor: '#2f80ed' },
+  simBtnText: { color: '#2f80ed', fontSize: 12, fontWeight: '600' },
   simBtnTextActive: { color: '#fff' },
   floorRow: {
     flexDirection: 'row', backgroundColor: '#fff', paddingHorizontal: 12,
-    paddingVertical: 8, gap: 6,
+    paddingVertical: 8, gap: 6, borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
   },
   floorChip: {
-    borderWidth: 1, borderColor: '#1a3a5c', borderRadius: 16,
+    borderWidth: 2, borderColor: '#2f80ed', borderRadius: 16,
     paddingHorizontal: 10, paddingVertical: 4,
   },
-  floorChipActive: { backgroundColor: '#1a3a5c' },
-  floorText: { fontSize: 12, color: '#1a3a5c' },
+  floorChipActive: { backgroundColor: '#2f80ed' },
+  floorText: { fontSize: 12, color: '#2f80ed', fontWeight: '600' },
   floorTextActive: { color: '#fff' },
-  simBanner: { backgroundColor: '#e8f4fd', padding: 8, alignItems: 'center' },
-  simBannerText: { color: '#1a3a5c', fontSize: 12 },
+  simBanner: { backgroundColor: '#EBF5FB', padding: 8, alignItems: 'center' },
+  simBannerText: { color: '#2f80ed', fontSize: 12, fontWeight: '500' },
   map: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   listContainer: { flex: 1, padding: 16 },
-  listTitle: { fontSize: 13, color: '#666', fontWeight: '700', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.6 },
+  listTitle: { fontSize: 12, color: '#999', fontWeight: '700', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.8 },
   beaconRow: {
-    backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 10,
+    backgroundColor: '#f9f9f9', borderRadius: 12, padding: 14, marginBottom: 10,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderLeftWidth: 4, borderLeftColor: '#1a3a5c',
+    borderLeftWidth: 4, borderLeftColor: '#2f80ed',
   },
-  beaconRowDisabled: { borderLeftColor: '#ccc', opacity: 0.6 },
-  beaconName: { fontSize: 16, fontWeight: '600', color: '#1a3a5c' },
-  beaconFloor: { fontSize: 13, color: '#666', marginTop: 2 },
-  beaconArrow: { fontSize: 24, color: '#1a3a5c', opacity: 0.4 },
+  beaconRowDisabled: { borderLeftColor: '#ddd', opacity: 0.6 },
+  beaconName: { fontSize: 15, fontWeight: '600', color: '#333' },
+  beaconFloor: { fontSize: 13, color: '#999', marginTop: 2 },
+  beaconArrow: { fontSize: 22, color: '#ccc' },
   locatingOverlay: {
     position: 'absolute', bottom: 24, alignSelf: 'center',
-    backgroundColor: 'rgba(26,58,92,0.85)', borderRadius: 24,
+    backgroundColor: 'rgba(47,128,237,0.9)', borderRadius: 24,
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 10, gap: 10,
   },
   locatingText: { color: '#fff', fontSize: 14 },
