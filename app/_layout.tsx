@@ -54,6 +54,7 @@ export default function RootLayout() {
       <Stack.Screen name="messages" />
       <Stack.Screen name="faq" />
       <Stack.Screen name="rgpd" />
+      <Stack.Screen name="admin-beacons" />
     </Stack>
   );
 }

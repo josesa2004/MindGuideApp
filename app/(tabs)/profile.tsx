@@ -18,8 +18,9 @@ const MOBILITY_OPTIONS = [
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
-  const { displayName, email, accessibilityMode, language, notificationsEnabled, logout, updateLocalProfile } =
+  const { displayName, email, role, accessibilityMode, language, notificationsEnabled, logout, updateLocalProfile } =
     useAuthStore();
+  const isAdmin = role === 'Admin';
   const [saving, setSaving] = useState(false);
 
   const changeMobility = async (value: number) => {
@@ -148,6 +149,16 @@ export default function ProfileScreen() {
           />
         </View>
       </View>
+
+      {/* Admin tools */}
+      {isAdmin && (
+        <>
+          <Text style={s.sectionTitle}>Administração</Text>
+          <View style={s.card}>
+            <MenuItem label="🗺️ Editar coordenadas dos beacons" onPress={() => router.push('/admin-beacons')} last />
+          </View>
+        </>
+      )}
 
       {/* Links */}
       <Text style={s.sectionTitle}>Mais</Text>
