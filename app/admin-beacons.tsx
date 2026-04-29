@@ -150,7 +150,7 @@ export default function AdminBeaconsScreen() {
               <Text style={s.beaconNum}>#{b.number}</Text>
               <Text style={s.beaconDesc}>{b.description ?? '(sem descrição)'}</Text>
               <Text style={s.beaconCoords}>
-                {b.latitude.toFixed(6)}, {b.longitude.toFixed(6)} · Piso {b.floor}
+                {(b.latitude ?? 0).toFixed(6)}, {(b.longitude ?? 0).toFixed(6)} · Piso {b.floor ?? '?'}
               </Text>
             </View>
             <Text style={s.arrow} accessibilityElementsHidden>✏️</Text>

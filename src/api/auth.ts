@@ -3,10 +3,12 @@ import { api } from './client';
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
-  userId: string;
-  displayName: string;
-  email: string;
-  role: string;
+  user: {
+    id: string;
+    email: string;
+    displayName: string;
+    role: number; // 0=User, 1=Staff, 2=Admin
+  };
 }
 
 export interface RegisterResponse {

@@ -38,15 +38,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { data } = await authApi.login(email, password);
     await SecureStore.setItemAsync('access_token', data.accessToken);
     await SecureStore.setItemAsync('refresh_token', data.refreshToken);
+    // role: 0=User, 1=Staff, 2=Admin — store as string for easier comparison
+    const roleMap: Record<number, string> = { 0: 'User', 1: 'Staff', 2: 'Admin' };
     set({
       accessToken: data.accessToken,
-      userId: data.userId,
-      displayName: data.displayName,
-      email: data.email,
-      role: data.role,
+      userId: data.user.id,
+      displayName: data.user.displayName,
+      email: data.user.email,
+      role: roleMap[data.user.role] ?? 'User',
       isAuthenticated: true,
     });
-    // Load profile details (accessibility mode, language)
     try { await get().refreshProfile(); } catch {}
   },
 
