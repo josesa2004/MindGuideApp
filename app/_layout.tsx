@@ -30,7 +30,7 @@ async function scheduleDiaryReminder() {
       body: 'Tens ocorrências para registar? Abre a app e adiciona uma entrada ao teu diário.',
       data: { screen: 'diary' },
     },
-    trigger: { weekday: 2, hour: 9, minute: 0, repeats: true } as any,
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.WEEKLY, weekday: 2, hour: 9, minute: 0 },
   });
 }
 
