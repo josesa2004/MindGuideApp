@@ -17,8 +17,25 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Schedule weekly diary reminder — fires every Monday at 09:00
+async function scheduleDiaryReminder() {
+  const existing = await Notifications.getAllScheduledNotificationsAsync();
+  const alreadyScheduled = existing.some((n) => n.identifier === 'diary-reminder');
+  if (alreadyScheduled) return;
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: 'diary-reminder',
+    content: {
+      title: 'MindGuide — Diário',
+      body: 'Tens ocorrências para registar? Abre a app e adiciona uma entrada ao teu diário.',
+      data: { screen: 'diary' },
+    },
+    trigger: { weekday: 2, hour: 9, minute: 0, repeats: true } as any,
+  });
+}
+
 export default function RootLayout() {
-  const { isLoading, isAuthenticated, loadFromStorage } = useAuthStore();
+  const { isLoading, isAuthenticated, loadFromStorage, notificationsEnabled } = useAuthStore();
 
   useEffect(() => {
     loadFromStorage();
@@ -34,13 +51,22 @@ export default function RootLayout() {
     }
   }, [isLoading, isAuthenticated]);
 
-  // Deep-link into map screen when user taps a proximity notification
+  // Schedule diary reminder once user is authenticated and has notifications enabled
+  useEffect(() => {
+    if (isAuthenticated && notificationsEnabled) {
+      Notifications.requestPermissionsAsync().then(({ status }) => {
+        if (status === 'granted') scheduleDiaryReminder();
+      });
+    }
+  }, [isAuthenticated, notificationsEnabled]);
+
+  // Deep-link handler: tapping any notification routes to the right screen
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data;
-      if (data?.screen === 'map' && isAuthenticated) {
-        router.push('/(tabs)/map');
-      }
+      if (!isAuthenticated) return;
+      if (data?.screen === 'map') router.push('/(tabs)/map');
+      else if (data?.screen === 'diary') router.push('/diary');
     });
     return () => sub.remove();
   }, [isAuthenticated]);
@@ -55,6 +81,12 @@ export default function RootLayout() {
       <Stack.Screen name="faq" />
       <Stack.Screen name="rgpd" />
       <Stack.Screen name="admin-beacons" />
+      <Stack.Screen name="admin-users" />
+      <Stack.Screen name="admin-positions" />
+      <Stack.Screen name="admin-routes" />
+      <Stack.Screen name="diary" />
+      <Stack.Screen name="epoc" />
+      <Stack.Screen name="room-view" />
     </Stack>
   );
 }

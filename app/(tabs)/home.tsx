@@ -65,6 +65,25 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Feature shortcuts */}
+        <View style={s.shortcutsRow}>
+          <TouchableOpacity style={s.shortcut} onPress={() => router.push('/diary')}
+            accessibilityRole="button" accessibilityLabel="Abrir diário de ocorrências">
+            <Text style={s.shortcutIcon}>📓</Text>
+            <Text style={s.shortcutLabel}>Diário</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.shortcut} onPress={() => router.push('/epoc')}
+            accessibilityRole="button" accessibilityLabel="Abrir controlo EPOC">
+            <Text style={s.shortcutIcon}>🧠</Text>
+            <Text style={s.shortcutLabel}>EPOC</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.shortcut} onPress={() => router.push('/room-view')}
+            accessibilityRole="button" accessibilityLabel="Ver imagens 360 graus das salas">
+            <Text style={s.shortcutIcon}>📸</Text>
+            <Text style={s.shortcutLabel}>360°</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Destination list */}
         <View style={s.sectionHeader}>
           <Text style={s.sectionTitle} accessibilityRole="header">{t('selectDestination')}</Text>
@@ -131,6 +150,13 @@ const s = StyleSheet.create({
   actionBtnActive: { backgroundColor: '#2f80ed' },
   actionBtnText: { fontSize: 13, fontWeight: '600', color: '#2f80ed' },
   actionBtnTextActive: { fontSize: 13, fontWeight: '600', color: '#fff' },
+  shortcutsRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
+  shortcut: {
+    flex: 1, backgroundColor: '#f9f9f9', borderRadius: 12,
+    paddingVertical: 14, alignItems: 'center', gap: 4,
+  },
+  shortcutIcon: { fontSize: 24 },
+  shortcutLabel: { fontSize: 12, fontWeight: '600', color: '#555' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   sectionTitle: { fontSize: 12, fontWeight: '700', color: '#999', textTransform: 'uppercase', letterSpacing: 1 },
   roomCard: {

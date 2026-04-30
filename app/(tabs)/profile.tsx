@@ -153,12 +153,23 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Personal tools */}
+        <Text style={s.sectionTitle}>Ferramentas</Text>
+        <View style={s.menuBlock}>
+          <MenuRow icon="📓" label="Diário de Ocorrências" onPress={() => router.push('/diary')} accessibilityLabel="Abrir diário de ocorrências" />
+          <MenuRow icon="🧠" label="Controlo EPOC (BCI)" onPress={() => router.push('/epoc')} accessibilityLabel="Abrir painel de controlo EPOC" />
+          <MenuRow icon="📸" label="Imagens 360° das Salas" onPress={() => router.push('/room-view')} accessibilityLabel="Ver imagens 360 graus das salas" last />
+        </View>
+
         {/* Admin tools */}
         {isAdmin && (
           <>
             <Text style={s.sectionTitle}>Administração</Text>
             <View style={s.menuBlock}>
-              <MenuRow icon="🗺️" label="Editar coordenadas dos beacons" onPress={() => router.push('/admin-beacons')} last />
+              <MenuRow icon="🗺️" label="Editar beacons" onPress={() => router.push('/admin-beacons')} accessibilityLabel="Editar coordenadas dos beacons" />
+              <MenuRow icon="👥" label="Utilizadores" onPress={() => router.push('/admin-users')} accessibilityLabel="Gerir utilizadores" />
+              <MenuRow icon="📍" label="Posições em tempo real" onPress={() => router.push('/admin-positions')} accessibilityLabel="Ver posições dos utilizadores no mapa" />
+              <MenuRow icon="🧭" label="Gerir rotas" onPress={() => router.push('/admin-routes')} accessibilityLabel="Gerir rotas de navegação" last />
             </View>
           </>
         )}
@@ -187,9 +198,16 @@ export default function ProfileScreen() {
   );
 }
 
-function MenuRow({ icon, label, onPress, last }: { icon: string; label: string; onPress: () => void; last?: boolean }) {
+function MenuRow({ icon, label, onPress, last, accessibilityLabel }: {
+  icon: string; label: string; onPress: () => void; last?: boolean; accessibilityLabel?: string;
+}) {
   return (
-    <TouchableOpacity style={[ms.item, last && { borderBottomWidth: 0 }]} onPress={onPress}>
+    <TouchableOpacity
+      style={[ms.item, last && { borderBottomWidth: 0 }]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+    >
       <View style={ms.iconBg}><Text style={ms.iconText}>{icon}</Text></View>
       <Text style={ms.label}>{label}</Text>
       <Text style={ms.chevron}>›</Text>

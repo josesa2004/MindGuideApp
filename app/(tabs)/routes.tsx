@@ -1,24 +1,36 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert, AccessibilityInfo,
+  ActivityIndicator, Alert, Switch,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import * as Speech from 'expo-speech';
 import { useSpeech } from '../../src/hooks/useSpeech';
 import { getRoutes, getRoute } from '../../src/api/navigation';
+import { recordLocation } from '../../src/api/navigation';
+import { useAuthStore } from '../../src/store/authStore';
 
-type RouteItem = { id: string; name: string; roomName?: string; roomCode?: string; floor?: number };
+type RouteItem = { id: string; name: string; roomName?: string; roomCode?: string; floor?: number; isActive?: boolean };
+type RouteStep = { order: number; beaconId?: string; instruction: string; elevationChange?: number };
 type RouteDetail = {
   id: string;
   name: string;
   floor: number;
   coordinatesJson: string;
-  steps: { order: number; instruction: string }[];
+  toRoomId?: string;
+  toRoomCode?: string;
+  steps: RouteStep[];
 };
 
 const ISEP_CENTER = [41.18316, -8.62882];
+
+// Speak always during active navigation, not only when blind
+function speakNav(text: string) {
+  Speech.stop();
+  Speech.speak(text, { language: 'pt-PT', rate: 0.9 });
+}
 
 function buildRouteHtml(route: RouteDetail): string {
   let coords: [number, number][] = [];
@@ -49,12 +61,18 @@ function buildRouteHtml(route: RouteDetail): string {
 export default function RoutesScreen() {
   const { t } = useTranslation();
   const { speak, isBlind } = useSpeech();
+  const router = useRouter();
   const params = useLocalSearchParams<{ roomId?: string; roomName?: string }>();
+  const accessibilityMode = useAuthStore((s) => s.accessibilityMode);
+
   const [routes, setRoutes] = useState<RouteItem[]>([]);
   const [selected, setSelected] = useState<RouteDetail | null>(null);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [autoAdvance, setAutoAdvance] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(true);
+  const autoRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     getRoutes(params.roomId)
@@ -72,18 +90,47 @@ export default function RoutesScreen() {
       .finally(() => setLoadingList(false));
   }, [params.roomId]);
 
+  // Auto-advance timer: simulates proximity detection — advances one step every ~9s
+  useEffect(() => {
+    if (!selected || !autoAdvance) {
+      if (autoRef.current) clearInterval(autoRef.current);
+      return;
+    }
+    autoRef.current = setInterval(() => {
+      setCurrentStep((prev) => {
+        const steps = selected.steps ?? [];
+        if (prev >= steps.length) {
+          clearInterval(autoRef.current!);
+          return prev;
+        }
+        const next = prev + 1;
+        const instruction = next < steps.length
+          ? steps[next].instruction
+          : t('arrived');
+        if (ttsEnabled) speakNav(`Passo ${next + 1}: ${instruction}`);
+        // Report location for this step's beacon
+        const beaconId = steps[prev]?.beaconId;
+        if (beaconId) {
+          recordLocation({ beaconId, latitude: 41.1785, longitude: -8.6080, floor: selected.floor })
+            .catch(() => {});
+        }
+        return next;
+      });
+    }, 9000);
+    return () => { if (autoRef.current) clearInterval(autoRef.current!); };
+  }, [autoAdvance, selected, ttsEnabled]);
+
   const openRoute = async (id: string, name: string) => {
     setLoadingDetail(true);
-    speak(`A carregar rota ${name}.`);
+    if (ttsEnabled) speakNav(`A carregar rota ${name}.`);
     try {
       const data = await getRoute(id);
       setSelected(data);
       setCurrentStep(0);
-      if (data.steps?.length > 0) {
-        speak(`Rota ${data.name}. ${data.steps.length} passos. Passo 1: ${data.steps[0].instruction}`);
+      if (data.steps?.length > 0 && ttsEnabled) {
+        speakNav(`Rota ${data.name}. ${data.steps.length} passos. Passo 1: ${data.steps[0].instruction}`);
       }
     } catch {
-      speak('Erro ao carregar rota.');
       Alert.alert(t('error'), 'Não foi possível carregar a rota.');
     } finally {
       setLoadingDetail(false);
@@ -95,32 +142,84 @@ export default function RoutesScreen() {
     const steps = selected.steps ?? [];
     if (next >= steps.length) {
       setCurrentStep(steps.length);
-      speak(t('arrived'));
+      if (ttsEnabled) speakNav(t('arrived'));
       return;
     }
     setCurrentStep(next);
-    speak(`Passo ${next + 1} de ${steps.length}: ${steps[next].instruction}`);
+    if (ttsEnabled) speakNav(`Passo ${next + 1} de ${steps.length}: ${steps[next].instruction}`);
   };
 
   if (selected) {
     const steps = selected.steps ?? [];
     const done = currentStep >= steps.length;
+    const isWheelchair = accessibilityMode === 2;
+
     return (
       <View style={s.container}>
         <View style={s.header} accessibilityRole="header">
           <TouchableOpacity
-            onPress={() => { setSelected(null); speak('Lista de rotas.'); }}
+            onPress={() => {
+              setSelected(null);
+              setAutoAdvance(false);
+              if (autoRef.current) clearInterval(autoRef.current);
+              speak('Lista de rotas.');
+            }}
             style={s.backBtn}
             accessibilityRole="button"
-            accessibilityLabel={`${t('back')} para lista de rotas`}
+            accessibilityLabel="Voltar para lista de rotas"
           >
             <Text style={s.backText}>← {t('back')}</Text>
           </TouchableOpacity>
-          <Text style={s.title} numberOfLines={1} accessibilityRole="header">{selected.name}</Text>
+          <View style={s.titleRow}>
+            <Text style={s.title} numberOfLines={1} accessibilityRole="header">{selected.name}</Text>
+            {isWheelchair && (
+              <View style={s.a11yBadge} accessibilityLabel="Rota acessível para cadeirantes">
+                <Text style={s.a11yBadgeText}>♿ Acessível</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Controls row */}
+        <View style={s.controlsRow}>
+          <View style={s.controlItem}>
+            <Text style={s.controlLabel} accessibilityElementsHidden>🔊 Narração</Text>
+            <Switch
+              value={ttsEnabled}
+              onValueChange={(v) => {
+                setTtsEnabled(v);
+                if (!v) Speech.stop();
+              }}
+              thumbColor={ttsEnabled ? '#2f80ed' : '#ccc'}
+              trackColor={{ true: '#90bef5', false: '#e0e0e0' }}
+              accessibilityLabel="Activar narração por voz"
+              accessibilityState={{ checked: ttsEnabled }}
+            />
+          </View>
+          <View style={s.controlItem}>
+            <Text style={s.controlLabel} accessibilityElementsHidden>📍 Auto-avançar</Text>
+            <Switch
+              value={autoAdvance}
+              onValueChange={setAutoAdvance}
+              thumbColor={autoAdvance ? '#2f80ed' : '#ccc'}
+              trackColor={{ true: '#90bef5', false: '#e0e0e0' }}
+              accessibilityLabel="Activar avanço automático de passos"
+              accessibilityState={{ checked: autoAdvance }}
+            />
+          </View>
+          {selected.toRoomCode && (
+            <TouchableOpacity
+              style={s.view360Btn}
+              onPress={() => router.push({ pathname: '/room-view', params: { roomCode: selected.toRoomCode } })}
+              accessibilityLabel="Ver imagens 360 graus da sala"
+            >
+              <Text style={s.view360Text}>360°</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {!isBlind && (
-          <View style={{ height: 220 }}>
+          <View style={{ height: 200 }}>
             <WebView source={{ html: buildRouteHtml(selected) }} javaScriptEnabled domStorageEnabled
               accessibilityLabel="Mapa da rota" />
           </View>
@@ -130,12 +229,27 @@ export default function RoutesScreen() {
           {done ? (
             <View style={s.arrivedCard} accessibilityLiveRegion="assertive" accessibilityLabel={t('arrived')}>
               <Text style={s.arrivedText}>🎯 {t('arrived')}</Text>
+              {selected.toRoomCode && (
+                <TouchableOpacity
+                  style={s.viewRoomBtn}
+                  onPress={() => router.push({ pathname: '/room-view', params: { roomCode: selected.toRoomCode } })}
+                  accessibilityLabel="Ver imagens 360 graus da sala de destino"
+                >
+                  <Text style={s.viewRoomBtnText}>Ver sala 360° →</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             <View style={s.stepCard}>
               <Text style={s.stepLabel} accessibilityElementsHidden>
                 {t('step')} {currentStep + 1} / {steps.length}
+                {autoAdvance ? '  · 📍 auto' : ''}
               </Text>
+              {steps[currentStep]?.elevationChange === 1 && (
+                <View style={s.elevatorBadge} accessibilityLabel="Este passo envolve o elevador">
+                  <Text style={s.elevatorText}>🛗 Elevador</Text>
+                </View>
+              )}
               <Text
                 style={s.stepInstruction}
                 accessibilityLabel={`Passo ${currentStep + 1} de ${steps.length}: ${steps[currentStep]?.instruction}`}
@@ -158,7 +272,9 @@ export default function RoutesScreen() {
                   style={s.nextBtn}
                   onPress={() => goToStep(currentStep + 1)}
                   accessibilityRole="button"
-                  accessibilityLabel={currentStep + 1 < steps.length ? `Próximo passo, passo ${currentStep + 2}` : 'Marcar como chegado'}
+                  accessibilityLabel={currentStep + 1 < steps.length
+                    ? `Próximo passo, passo ${currentStep + 2}`
+                    : 'Marcar como chegado'}
                 >
                   <Text style={s.nextBtnText}>
                     {currentStep + 1 < steps.length ? 'Próximo ›' : t('arrived')}
@@ -172,16 +288,19 @@ export default function RoutesScreen() {
           {steps.map((step, i) => (
             <TouchableOpacity
               key={step.order}
-              style={[s.stepRow, i === currentStep && s.stepRowActive]}
+              style={[s.stepRow, i === currentStep && s.stepRowActive, i < currentStep && s.stepRowDone]}
               onPress={() => goToStep(i)}
               accessibilityRole="button"
               accessibilityLabel={`Ir para passo ${i + 1}: ${step.instruction}`}
               accessibilityState={{ selected: i === currentStep }}
             >
-              <View style={[s.stepDot, i === currentStep && s.stepDotActive]}>
-                <Text style={[s.stepDotText, i === currentStep && s.stepDotTextActive]}>{i + 1}</Text>
+              <View style={[s.stepDot, i === currentStep && s.stepDotActive, i < currentStep && s.stepDotDone]}>
+                <Text style={[s.stepDotText, (i === currentStep || i < currentStep) && s.stepDotTextActive]}>
+                  {i < currentStep ? '✓' : i + 1}
+                </Text>
               </View>
-              <Text style={s.stepRowText}>{step.instruction}</Text>
+              <Text style={[s.stepRowText, i < currentStep && { color: '#aaa' }]}>{step.instruction}</Text>
+              {step.elevationChange === 1 && <Text style={s.elevatorIcon}>🛗</Text>}
             </TouchableOpacity>
           ))}
           <View style={{ height: 24 }} />
@@ -194,11 +313,15 @@ export default function RoutesScreen() {
     <View style={s.container}>
       <View style={s.header} accessibilityRole="header">
         <Text style={s.title} accessibilityRole="header">{t('routesTitle')}</Text>
-        {params.roomName ? <Text style={s.subtitle} accessibilityLabel={`Destino: ${params.roomName}`}>→ {params.roomName}</Text> : null}
+        {params.roomName
+          ? <Text style={s.subtitle} accessibilityLabel={`Destino: ${params.roomName}`}>→ {params.roomName}</Text>
+          : null}
       </View>
 
       {loadingList ? (
-        <View style={s.center}><ActivityIndicator color="#2f80ed" size="large" accessibilityLabel="A carregar rotas" /></View>
+        <View style={s.center}>
+          <ActivityIndicator color="#2f80ed" size="large" accessibilityLabel="A carregar rotas" />
+        </View>
       ) : (
         <ScrollView>
           {routes.length === 0 && (
@@ -215,9 +338,21 @@ export default function RoutesScreen() {
             >
               <View style={s.routeInfo}>
                 <Text style={s.routeName}>{r.name}</Text>
-                {r.roomName ? <Text style={s.routeSub}>{r.roomCode} — {r.roomName}</Text> : null}
+                {r.roomName
+                  ? <Text style={s.routeSub}>{r.roomCode} — {r.roomName}</Text>
+                  : null}
+                <View style={s.routeBadges}>
+                  <View style={s.routeBadge}>
+                    <Text style={s.routeBadgeText}>♿ Acessível</Text>
+                  </View>
+                  <View style={[s.routeBadge, { backgroundColor: '#27ae6020' }]}>
+                    <Text style={[s.routeBadgeText, { color: '#27ae60' }]}>🛗 Elevador</Text>
+                  </View>
+                </View>
               </View>
-              {loadingDetail ? <ActivityIndicator color="#2f80ed" /> : <Text style={s.arrow} accessibilityElementsHidden>›</Text>}
+              {loadingDetail
+                ? <ActivityIndicator color="#2f80ed" />
+                : <Text style={s.arrow} accessibilityElementsHidden>›</Text>}
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -234,8 +369,26 @@ const s = StyleSheet.create({
   },
   backBtn: { marginBottom: 8 },
   backText: { color: '#2f80ed', fontSize: 14, fontWeight: '600' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   title: { color: '#333', fontSize: 22, fontWeight: '700' },
   subtitle: { color: '#999', fontSize: 13, marginTop: 4 },
+  a11yBadge: {
+    backgroundColor: '#EBF5FB', paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 10,
+  },
+  a11yBadgeText: { color: '#2f80ed', fontSize: 12, fontWeight: '600' },
+  controlsRow: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16,
+    paddingVertical: 10, gap: 16, backgroundColor: '#f9f9f9',
+    borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
+  },
+  controlItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  controlLabel: { fontSize: 12, color: '#555' },
+  view360Btn: {
+    marginLeft: 'auto' as any, backgroundColor: '#2f80ed',
+    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12,
+  },
+  view360Text: { color: '#fff', fontWeight: '700', fontSize: 13 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { textAlign: 'center', color: '#999', marginTop: 40, fontSize: 15 },
   routeCard: {
@@ -245,14 +398,31 @@ const s = StyleSheet.create({
   routeInfo: { flex: 1 },
   routeName: { fontSize: 15, fontWeight: '600', color: '#333' },
   routeSub: { fontSize: 12, color: '#999', marginTop: 2 },
+  routeBadges: { flexDirection: 'row', gap: 6, marginTop: 6 },
+  routeBadge: {
+    backgroundColor: '#EBF5FB', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10,
+  },
+  routeBadgeText: { fontSize: 11, color: '#2f80ed', fontWeight: '600' },
   arrow: { fontSize: 20, color: '#ccc' },
   stepsContainer: { flex: 1, padding: 16 },
   arrivedCard: {
-    backgroundColor: '#EBF5FB', borderRadius: 14, padding: 20, alignItems: 'center', marginBottom: 16,
+    backgroundColor: '#EBF5FB', borderRadius: 14, padding: 20,
+    alignItems: 'center', marginBottom: 16,
   },
   arrivedText: { fontSize: 18, fontWeight: 'bold', color: '#2f80ed' },
+  viewRoomBtn: {
+    marginTop: 12, backgroundColor: '#2f80ed',
+    paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20,
+  },
+  viewRoomBtnText: { color: '#fff', fontWeight: '700' },
   stepCard: { backgroundColor: '#f9f9f9', borderRadius: 12, padding: 16, marginBottom: 16 },
   stepLabel: { fontSize: 12, color: '#999', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6 },
+  elevatorBadge: {
+    backgroundColor: '#EBF5FB', borderRadius: 8, paddingHorizontal: 10,
+    paddingVertical: 4, alignSelf: 'flex-start', marginBottom: 8,
+  },
+  elevatorText: { color: '#2f80ed', fontSize: 12, fontWeight: '600' },
+  elevatorIcon: { fontSize: 14 },
   stepInstruction: { fontSize: 17, fontWeight: '600', color: '#333', lineHeight: 26, marginBottom: 16 },
   stepBtns: { flexDirection: 'row', gap: 10 },
   prevBtn: { flex: 1, borderWidth: 2, borderColor: '#2f80ed', borderRadius: 20, padding: 12, alignItems: 'center' },
@@ -265,11 +435,13 @@ const s = StyleSheet.create({
     backgroundColor: '#f9f9f9', borderRadius: 10, padding: 12, gap: 12,
   },
   stepRowActive: { backgroundColor: '#EBF5FB', borderLeftWidth: 3, borderLeftColor: '#2f80ed' },
+  stepRowDone: { opacity: 0.5 },
   stepDot: {
     width: 28, height: 28, borderRadius: 14, backgroundColor: '#e0e0e0',
     alignItems: 'center', justifyContent: 'center',
   },
   stepDotActive: { backgroundColor: '#2f80ed' },
+  stepDotDone: { backgroundColor: '#27ae60' },
   stepDotText: { fontSize: 12, fontWeight: 'bold', color: '#666' },
   stepDotTextActive: { color: '#fff' },
   stepRowText: { flex: 1, fontSize: 14, color: '#333', lineHeight: 20 },
