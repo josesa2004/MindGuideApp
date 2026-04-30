@@ -20,22 +20,27 @@ const FLOORS = [
   { label: 'Piso 4', value: 4 },
 ];
 
-const ISEP_CENTER = [41.18316, -8.62882];
+// Centroid of the real on-site beacon measurements
+const ISEP_CENTER = [41.1781, -8.6079];
 
 function buildLeafletHtml(beacons: Beacon[], floor: number): string {
   const filtered = floor === 0 ? beacons : beacons.filter((b) => b.floor === floor);
   const markersJs = filtered
     .map(
       (b) =>
-        `L.circleMarker([${b.latitude}, ${b.longitude}], {
+        `markers.push(L.circleMarker([${b.latitude}, ${b.longitude}], {
           radius: 14, color: '#2f80ed', fillColor: '#5da6f5', fillOpacity: 0.9, weight: 2
         }).addTo(map)
          .bindPopup('<b>${b.name}</b><br/>Piso ${b.floor}')
          .on('click', () => window.ReactNativeWebView.postMessage(
            JSON.stringify({type:'beacon', id:'${b.id}', lat:${b.latitude}, lon:${b.longitude}, floor:${b.floor}, name:'${b.name}'})
-         ));`,
+         )));`,
     )
     .join('\n');
+
+  const fitJs = filtered.length > 0
+    ? `var group = L.featureGroup(markers); map.fitBounds(group.getBounds(), {padding:[40,40], maxZoom:19});`
+    : `map.setView([${ISEP_CENTER[0]},${ISEP_CENTER[1]}],17);`;
 
   return `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
@@ -44,9 +49,11 @@ function buildLeafletHtml(beacons: Beacon[], floor: number): string {
 <style>html,body,#map{margin:0;padding:0;height:100%;width:100%;}</style>
 </head><body><div id="map"></div>
 <script>
-  var map = L.map('map',{zoomControl:true}).setView([${ISEP_CENTER[0]},${ISEP_CENTER[1]}],18);
+  var map = L.map('map',{zoomControl:true}).setView([${ISEP_CENTER[0]},${ISEP_CENTER[1]}],17);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:22}).addTo(map);
+  var markers = [];
   ${markersJs}
+  ${fitJs}
 </script></body></html>`;
 }
 
@@ -67,7 +74,10 @@ export default function MapScreen() {
   useEffect(() => {
     getNodes()
       .then((data) => {
-        const list: Beacon[] = data?.beacons ?? [];
+        const list: Beacon[] = (data?.beacons ?? []).map((b: any) => ({
+          ...b,
+          name: b.description ?? `Beacon #${b.number}`,
+        }));
         setBeacons(list);
         if (isBlind) speak(`Mapa carregado. ${list.length} beacons disponíveis.`);
       })

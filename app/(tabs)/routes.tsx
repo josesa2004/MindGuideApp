@@ -24,7 +24,7 @@ type RouteDetail = {
   steps: RouteStep[];
 };
 
-const ISEP_CENTER = [41.18316, -8.62882];
+const ISEP_CENTER = [41.1781, -8.6079];
 
 // Speak always during active navigation, not only when blind
 function speakNav(text: string) {
