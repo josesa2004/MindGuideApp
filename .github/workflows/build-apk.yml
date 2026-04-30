@@ -3,7 +3,7 @@ name: Build APK (EAS)
 on:
   workflow_dispatch:          # trigger manually from GitHub Actions tab
   push:
-    branches: [react]
+    branches: [main]
     paths:
       - 'app/**'
       - 'src/**'
