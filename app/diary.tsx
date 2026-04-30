@@ -7,6 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { diaryApi, DiaryEntry } from '../src/api/diary';
+import { randomUUID } from '../src/utils/uuid';
 
 const CATEGORIES = [
   { value: 0, label: 'Obstáculo' },
@@ -73,7 +74,7 @@ export default function DiaryScreen() {
     setSubmitting(true);
     try {
       const entry = await diaryApi.submit({
-        clientEntryId: crypto.randomUUID(),
+        clientEntryId: randomUUID(),
         occurredAt: new Date().toISOString(),
         category,
         description: description.trim(),

@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { api } from '../src/api/client';
 import { useAuthStore } from '../src/store/authStore';
 import { adminApi, BciAction } from '../src/api/admin';
+import { randomUUID } from '../src/utils/uuid';
 
 // BCI action type labels (mirrors BciActionType enum)
 const ACTION_LABELS: Record<number, string> = {
@@ -86,7 +87,7 @@ export default function EpocScreen() {
   const { role, userId } = useAuthStore();
   const isAdmin = role === 'Admin';
 
-  const [sessionId] = useState(() => crypto.randomUUID());
+  const [sessionId] = useState(() => randomUUID());
   const [active, setActive] = useState(false);
   const [confidence, setConfidence] = useState(0.72);
   const [lastAction, setLastAction] = useState<number | null>(null);
