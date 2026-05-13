@@ -4,13 +4,18 @@ import { PermissionsAndroid, Platform } from 'react-native';
 // iBeacon UUID used in the database and nRF Connect emulation
 export const MINDGUIDE_UUID = '550e8400-e29b-41d4-a716-446655440000';
 
+// Service UUID prefix/suffix used by the macOS bleno emulator:
+// 550e8400-e29b-41d4-XXXX-446655440000  where XXXX = beacon number (hex)
+const SVC_PREFIX = '550e8400-e29b-41d4-';
+const SVC_SUFFIX = '-446655440000';
+
 export type DetectedBeacon = {
   number: number;  // iBeacon minor = beacon number
   rssi: number;
 };
 
 export type ScanStats = {
-  totalDevices: number;   // all BLE devices seen (for debugging)
+  totalDevices: number;   // unique BLE devices seen
   matchedBeacons: number; // devices that matched our UUID
   lastHex?: string;       // first 8 bytes of last manufacturer data — debug
 };
@@ -38,7 +43,6 @@ function b64ToBytes(b64: string): number[] {
   return out;
 }
 
-// ── Hex helper for debug display ──────────────────────────────────────────────
 function toDebugHex(b64: string): string {
   try {
     return b64ToBytes(b64)
@@ -50,22 +54,17 @@ function toDebugHex(b64: string): string {
   }
 }
 
-// ── UUID-byte search parser ───────────────────────────────────────────────────
-// Searches for the 16 UUID bytes anywhere in manufacturer data, then reads
-// the 4 bytes that follow (Major 2 + Minor 2). Works regardless of how
-// nRF Connect formats the surrounding AD structure (company ID, type byte, etc.)
+// ── Parser 1: manufacturer data — UUID bytes anywhere in the payload ──────────
 const UUID_NEEDLE = MINDGUIDE_UUID.replace(/-/g, '')
   .match(/.{2}/g)!
   .map((h) => parseInt(h, 16));
 
-function parseBeacon(base64: string): { minor: number } | null {
+function parseFromManufacturerData(base64: string): { minor: number } | null {
   try {
     const b = b64ToBytes(base64);
     const len = UUID_NEEDLE.length; // 16
-
     for (let i = 0; i <= b.length - len - 4; i++) {
       if (UUID_NEEDLE.every((byte, j) => b[i + j] === byte)) {
-        // UUID found at i → Major at i+16/i+17, Minor at i+18/i+19
         const minor = (b[i + len + 2] << 8) | b[i + len + 3];
         return { minor };
       }
@@ -74,6 +73,22 @@ function parseBeacon(base64: string): { minor: number } | null {
   } catch {
     return null;
   }
+}
+
+// ── Parser 2: service UUIDs — macOS bleno emulator ───────────────────────────
+// Service UUID format: 550e8400-e29b-41d4-XXXX-446655440000
+// XXXX is the beacon number encoded as a 4-digit hex string.
+function parseFromServiceUUIDs(uuids: string[] | null | undefined): { minor: number } | null {
+  if (!uuids) return null;
+  for (const uuid of uuids) {
+    const lower = uuid.toLowerCase();
+    if (lower.startsWith(SVC_PREFIX) && lower.endsWith(SVC_SUFFIX)) {
+      const minorHex = lower.slice(SVC_PREFIX.length, SVC_PREFIX.length + 4);
+      const minor = parseInt(minorHex, 16);
+      if (!isNaN(minor) && minor > 0) return { minor };
+    }
+  }
+  return null;
 }
 
 // ── Permissions ───────────────────────────────────────────────────────────────
@@ -115,23 +130,37 @@ export async function startBLEScanning(
 
   if (!ready) return false;
 
-  let totalDevices = 0;
+  // Track unique device IDs to avoid counting the same device repeatedly
+  const seenIds = new Set<string>();
   let matchedBeacons = 0;
 
   m.startDeviceScan(null, { allowDuplicates: true }, (error, device) => {
     if (error || !device) return;
 
-    totalDevices++;
+    const isNew = !seenIds.has(device.id);
+    if (isNew) seenIds.add(device.id);
+
     const lastHex = device.manufacturerData ? toDebugHex(device.manufacturerData) : undefined;
-    onStats?.({ totalDevices, matchedBeacons, lastHex });
 
-    if (!device.manufacturerData) return;
+    if (isNew) {
+      onStats?.({ totalDevices: seenIds.size, matchedBeacons, lastHex });
+    }
 
-    const parsed = parseBeacon(device.manufacturerData);
+    // Try manufacturer data first (real Estimote / nRF Connect)
+    let parsed: { minor: number } | null = null;
+    if (device.manufacturerData) {
+      parsed = parseFromManufacturerData(device.manufacturerData);
+    }
+
+    // Fallback: service UUIDs (macOS bleno emulator)
+    if (!parsed) {
+      parsed = parseFromServiceUUIDs(device.serviceUUIDs);
+    }
+
     if (!parsed) return;
 
-    matchedBeacons++;
-    onStats?.({ totalDevices, matchedBeacons, lastHex });
+    if (isNew) matchedBeacons++;
+    onStats?.({ totalDevices: seenIds.size, matchedBeacons, lastHex });
     onDetected({ number: parsed.minor, rssi: device.rssi ?? -100 });
   });
 
