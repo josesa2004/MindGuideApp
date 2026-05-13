@@ -31,6 +31,12 @@ export default function AdminPositionsScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Auto-refresh every 15 seconds so the admin sees positions update in real time
+  useEffect(() => {
+    const interval = setInterval(load, 15000);
+    return () => clearInterval(interval);
+  }, [load]);
+
   const refreshMap = () => {
     if (!nodes || !webRef.current) return;
     const beacons = nodes.beacons ?? [];
@@ -101,7 +107,7 @@ window._userLayer = L.layerGroup().addTo(map);
         </TouchableOpacity>
         <Text style={s.title}>Posições dos Utilizadores</Text>
         <TouchableOpacity onPress={load} accessibilityLabel="Recarregar posições">
-          <Text style={s.reload}>↺</Text>
+          <Text style={s.reload}>↺ Live</Text>
         </TouchableOpacity>
       </View>
 
