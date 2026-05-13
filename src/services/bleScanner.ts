@@ -1,8 +1,8 @@
 import { BleManager, State } from 'react-native-ble-plx';
 import { PermissionsAndroid, Platform } from 'react-native';
 
-// Estimote default iBeacon UUID
-export const MINDGUIDE_UUID = 'b9407f30-f5f8-466e-aff9-25556b57fe6d';
+// iBeacon UUID used in the database and nRF Connect emulation
+export const MINDGUIDE_UUID = '550e8400-e29b-41d4-a716-446655440000';
 
 export type DetectedBeacon = {
   number: number;  // iBeacon minor = beacon number
