@@ -101,7 +101,7 @@ export default function MapScreen() {
   const [geofenceActive, setGeofenceActive] = useState(false);
   const [bleActive, setBleActive] = useState(false);
   const [nearestBeacon, setNearestBeacon] = useState<Beacon | null>(null);
-  const [scanStats, setScanStats] = useState<ScanStats | null>(null);
+  const [scanStats, setScanStats] = useState<ScanStats>({ totalDevices: 0, matchedBeacons: 0 });
 
   // Accumulate BLE readings; pick nearest every 2 s
   const bleReadings = useRef<Map<number, number>>(new Map()); // number → rssi
@@ -126,7 +126,7 @@ export default function MapScreen() {
     if (!bleActive) {
       stopBLEScanning();
       bleReadings.current.clear();
-      setScanStats(null);
+      setScanStats({ totalDevices: 0, matchedBeacons: 0 });
       return;
     }
 
@@ -303,8 +303,8 @@ export default function MapScreen() {
           <Text style={s.simBannerText}>
             {nearestBeacon
               ? `📍 Está perto de: ${nearestBeacon.name} — Piso ${nearestBeacon.floor}`
-              : scanStats && scanStats.totalDevices > 0
-                ? `📶 A filtrar… (${scanStats.totalDevices} BLE visto${scanStats.totalDevices !== 1 ? 's' : ''}, 0 beacons)`
+              : scanStats.totalDevices > 0
+                ? `📶 ${scanStats.totalDevices} BLE | hex: ${scanStats.lastHex ?? '—'}`
                 : '📶 À procura de beacons Bluetooth…'}
           </Text>
         </View>

@@ -12,6 +12,7 @@ export type DetectedBeacon = {
 export type ScanStats = {
   totalDevices: number;   // all BLE devices seen (for debugging)
   matchedBeacons: number; // devices that matched our UUID
+  lastHex?: string;       // first 8 bytes of last manufacturer data — debug
 };
 
 let _manager: BleManager | null = null;
@@ -37,33 +38,39 @@ function b64ToBytes(b64: string): number[] {
   return out;
 }
 
-// ── iBeacon parser ────────────────────────────────────────────────────────────
-// Full manufacturer data layout (as returned by react-native-ble-plx):
-//   [0-1]  Company ID 0x004C little-endian → 4C 00
-//   [2]    Type   0x02
-//   [3]    Length 0x15
-//   [4-19] UUID   16 bytes
-//   [20-21] Major  big-endian
-//   [22-23] Minor  big-endian  ← beacon number
-//   [24]   TX Power
-function parseIBeacon(base64: string): { uuid: string; minor: number } | null {
+// ── Hex helper for debug display ──────────────────────────────────────────────
+function toDebugHex(b64: string): string {
+  try {
+    return b64ToBytes(b64)
+      .slice(0, 8)
+      .map((x) => x.toString(16).padStart(2, '0'))
+      .join(' ');
+  } catch {
+    return '??';
+  }
+}
+
+// ── UUID-byte search parser ───────────────────────────────────────────────────
+// Searches for the 16 UUID bytes anywhere in manufacturer data, then reads
+// the 4 bytes that follow (Major 2 + Minor 2). Works regardless of how
+// nRF Connect formats the surrounding AD structure (company ID, type byte, etc.)
+const UUID_NEEDLE = MINDGUIDE_UUID.replace(/-/g, '')
+  .match(/.{2}/g)!
+  .map((h) => parseInt(h, 16));
+
+function parseBeacon(base64: string): { minor: number } | null {
   try {
     const b = b64ToBytes(base64);
-    if (b.length < 25) return null;
-    if (b[0] !== 0x4c || b[1] !== 0x00) return null; // not Apple
-    if (b[2] !== 0x02 || b[3] !== 0x15) return null; // not iBeacon
+    const len = UUID_NEEDLE.length; // 16
 
-    const h = (i: number) => b[i].toString(16).padStart(2, '0');
-    const uuid = [
-      h(4)+h(5)+h(6)+h(7),
-      h(8)+h(9),
-      h(10)+h(11),
-      h(12)+h(13),
-      h(14)+h(15)+h(16)+h(17)+h(18)+h(19),
-    ].join('-');
-
-    const minor = (b[22] << 8) | b[23];
-    return { uuid, minor };
+    for (let i = 0; i <= b.length - len - 4; i++) {
+      if (UUID_NEEDLE.every((byte, j) => b[i + j] === byte)) {
+        // UUID found at i → Major at i+16/i+17, Minor at i+18/i+19
+        const minor = (b[i + len + 2] << 8) | b[i + len + 3];
+        return { minor };
+      }
+    }
+    return null;
   } catch {
     return null;
   }
@@ -115,16 +122,16 @@ export async function startBLEScanning(
     if (error || !device) return;
 
     totalDevices++;
-    onStats?.({ totalDevices, matchedBeacons });
+    const lastHex = device.manufacturerData ? toDebugHex(device.manufacturerData) : undefined;
+    onStats?.({ totalDevices, matchedBeacons, lastHex });
 
     if (!device.manufacturerData) return;
 
-    const parsed = parseIBeacon(device.manufacturerData);
+    const parsed = parseBeacon(device.manufacturerData);
     if (!parsed) return;
-    if (parsed.uuid.toLowerCase() !== MINDGUIDE_UUID) return;
 
     matchedBeacons++;
-    onStats?.({ totalDevices, matchedBeacons });
+    onStats?.({ totalDevices, matchedBeacons, lastHex });
     onDetected({ number: parsed.minor, rssi: device.rssi ?? -100 });
   });
 
