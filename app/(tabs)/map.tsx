@@ -75,7 +75,7 @@ function buildPositionInjectScript(lat: number, lon: number, name: string): stri
   if (!window._posMarker) {
     window._posMarker = L.circleMarker([lat, lon], {
       radius: 18, color: '#e74c3c', fillColor: '#e74c3c',
-      fillOpacity: 0.85, weight: 3, className: 'pulse-marker'
+      fillOpacity: 0.85, weight: 3
     }).addTo(map).bindPopup('<b>📍 Está aqui</b><br>${safeName}');
   } else {
     window._posMarker.setLatLng([lat, lon]);
