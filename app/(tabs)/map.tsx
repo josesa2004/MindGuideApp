@@ -9,7 +9,7 @@ import { useAuthStore } from '../../src/store/authStore';
 import { useSpeech } from '../../src/hooks/useSpeech';
 import { getNodes, recordLocation } from '../../src/api/navigation';
 import { startBeaconGeofencing, stopBeaconGeofencing } from '../../src/services/geofencing';
-import { startBLEScanning, stopBLEScanning, DetectedBeacon } from '../../src/services/bleScanner';
+import { startBLEScanning, stopBLEScanning, DetectedBeacon, ScanStats } from '../../src/services/bleScanner';
 
 // number field comes from the API spread but isn't in the static type
 type Beacon = { id: string; number: number; name: string; latitude: number; longitude: number; floor: number };
@@ -101,6 +101,7 @@ export default function MapScreen() {
   const [geofenceActive, setGeofenceActive] = useState(false);
   const [bleActive, setBleActive] = useState(false);
   const [nearestBeacon, setNearestBeacon] = useState<Beacon | null>(null);
+  const [scanStats, setScanStats] = useState<ScanStats | null>(null);
 
   // Accumulate BLE readings; pick nearest every 2 s
   const bleReadings = useRef<Map<number, number>>(new Map()); // number → rssi
@@ -125,16 +126,20 @@ export default function MapScreen() {
     if (!bleActive) {
       stopBLEScanning();
       bleReadings.current.clear();
+      setScanStats(null);
       return;
     }
 
-    startBLEScanning((detected: DetectedBeacon) => {
-      // Update best RSSI for this beacon number
-      const prev = bleReadings.current.get(detected.number) ?? -999;
-      if (detected.rssi > prev) {
-        bleReadings.current.set(detected.number, detected.rssi);
-      }
-    }).then((ok) => {
+    startBLEScanning(
+      (detected: DetectedBeacon) => {
+        // Update best RSSI for this beacon number
+        const prev = bleReadings.current.get(detected.number) ?? -999;
+        if (detected.rssi > prev) {
+          bleReadings.current.set(detected.number, detected.rssi);
+        }
+      },
+      (stats: ScanStats) => setScanStats(stats),
+    ).then((ok) => {
       if (!ok) {
         setBleActive(false);
         Alert.alert('Bluetooth', 'Não foi possível iniciar a leitura BLE. Verifique se o Bluetooth está activado e as permissões concedidas.');
@@ -298,7 +303,9 @@ export default function MapScreen() {
           <Text style={s.simBannerText}>
             {nearestBeacon
               ? `📍 Está perto de: ${nearestBeacon.name} — Piso ${nearestBeacon.floor}`
-              : '📶 À procura de beacons Bluetooth…'}
+              : scanStats && scanStats.totalDevices > 0
+                ? `📶 A filtrar… (${scanStats.totalDevices} BLE visto${scanStats.totalDevices !== 1 ? 's' : ''}, 0 beacons)`
+                : '📶 À procura de beacons Bluetooth…'}
           </Text>
         </View>
       )}
