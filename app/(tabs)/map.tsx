@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator,
-  ScrollView, AccessibilityInfo,
+  ScrollView,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useTranslation } from 'react-i18next';
@@ -9,8 +9,10 @@ import { useAuthStore } from '../../src/store/authStore';
 import { useSpeech } from '../../src/hooks/useSpeech';
 import { getNodes, recordLocation } from '../../src/api/navigation';
 import { startBeaconGeofencing, stopBeaconGeofencing } from '../../src/services/geofencing';
+import { startBLEScanning, stopBLEScanning, DetectedBeacon } from '../../src/services/bleScanner';
 
-type Beacon = { id: string; name: string; latitude: number; longitude: number; floor: number };
+// number field comes from the API spread but isn't in the static type
+type Beacon = { id: string; number: number; name: string; latitude: number; longitude: number; floor: number };
 
 const FLOORS = [
   { label: 'Todos', value: 0 },
@@ -20,7 +22,6 @@ const FLOORS = [
   { label: 'Piso 4', value: 4 },
 ];
 
-// Centroid of the real on-site beacon measurements
 const ISEP_CENTER = [41.1781, -8.6079];
 
 function buildLeafletHtml(beacons: Beacon[], floor: number): string {
@@ -46,7 +47,15 @@ function buildLeafletHtml(beacons: Beacon[], floor: number): string {
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>html,body,#map{margin:0;padding:0;height:100%;width:100%;}</style>
+<style>
+  html,body,#map{margin:0;padding:0;height:100%;width:100%;}
+  @keyframes pulse {
+    0%   { transform: scale(1);   opacity: 1; }
+    50%  { transform: scale(1.4); opacity: 0.6; }
+    100% { transform: scale(1);   opacity: 1; }
+  }
+  .pulse-marker { animation: pulse 1.5s infinite ease-in-out; }
+</style>
 </head><body><div id="map"></div>
 <script>
   var map = L.map('map',{zoomControl:true}).setView([${ISEP_CENTER[0]},${ISEP_CENTER[1]}],17);
@@ -55,6 +64,26 @@ function buildLeafletHtml(beacons: Beacon[], floor: number): string {
   ${markersJs}
   ${fitJs}
 </script></body></html>`;
+}
+
+// Injected into the WebView to show/update the "You are here" marker
+function buildPositionInjectScript(lat: number, lon: number, name: string): string {
+  const safeName = name.replace(/'/g, "\\'");
+  return `
+(function() {
+  var lat = ${lat}, lon = ${lon};
+  if (!window._posMarker) {
+    window._posMarker = L.circleMarker([lat, lon], {
+      radius: 18, color: '#e74c3c', fillColor: '#e74c3c',
+      fillOpacity: 0.85, weight: 3, className: 'pulse-marker'
+    }).addTo(map).bindPopup('<b>📍 Está aqui</b><br>${safeName}');
+  } else {
+    window._posMarker.setLatLng([lat, lon]);
+    window._posMarker.getPopup().setContent('<b>📍 Está aqui</b><br>${safeName}');
+  }
+  window._posMarker.openPopup();
+  map.panTo([lat, lon], {animate: true});
+})(); true;`;
 }
 
 export default function MapScreen() {
@@ -70,6 +99,12 @@ export default function MapScreen() {
   const [simMode, setSimMode] = useState(false);
   const [locating, setLocating] = useState(false);
   const [geofenceActive, setGeofenceActive] = useState(false);
+  const [bleActive, setBleActive] = useState(false);
+  const [nearestBeacon, setNearestBeacon] = useState<Beacon | null>(null);
+
+  // Accumulate BLE readings; pick nearest every 2 s
+  const bleReadings = useRef<Map<number, number>>(new Map()); // number → rssi
+  const lastRecordedBeaconId = useRef<string | null>(null);
 
   useEffect(() => {
     getNodes()
@@ -84,6 +119,81 @@ export default function MapScreen() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  // ── BLE scanning ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!bleActive) {
+      stopBLEScanning();
+      bleReadings.current.clear();
+      return;
+    }
+
+    startBLEScanning((detected: DetectedBeacon) => {
+      // Update best RSSI for this beacon number
+      const prev = bleReadings.current.get(detected.number) ?? -999;
+      if (detected.rssi > prev) {
+        bleReadings.current.set(detected.number, detected.rssi);
+      }
+    }).then((ok) => {
+      if (!ok) {
+        setBleActive(false);
+        Alert.alert('Bluetooth', 'Não foi possível iniciar a leitura BLE. Verifique se o Bluetooth está activado e as permissões concedidas.');
+      }
+    });
+
+    // Every 2 s pick the beacon with strongest signal and update position
+    const interval = setInterval(() => {
+      if (bleReadings.current.size === 0) return;
+
+      // Find beacon number with highest RSSI
+      let bestNumber = -1, bestRssi = -999;
+      bleReadings.current.forEach((rssi, number) => {
+        if (rssi > bestRssi) { bestRssi = rssi; bestNumber = number; }
+      });
+      bleReadings.current.clear(); // reset window
+
+      const matched = beacons.find((b) => b.number === bestNumber);
+      if (!matched) return;
+
+      setNearestBeacon(matched);
+
+      // Inject position marker into Leaflet map
+      if (webRef.current) {
+        webRef.current.injectJavaScript(
+          buildPositionInjectScript(matched.latitude, matched.longitude, matched.name)
+        );
+      }
+
+      // Auto-record location (debounced — only when beacon changes)
+      if (matched.id !== lastRecordedBeaconId.current) {
+        lastRecordedBeaconId.current = matched.id;
+        recordLocation({
+          beaconId: matched.id,
+          latitude: matched.latitude,
+          longitude: matched.longitude,
+          floor: matched.floor,
+        }).catch(() => {});
+        speak(`Beacon detectado: ${matched.name}, piso ${matched.floor}.`);
+      }
+    }, 2000);
+
+    return () => {
+      clearInterval(interval);
+      stopBLEScanning();
+    };
+  }, [bleActive, beacons]);
+
+  const toggleBLE = async () => {
+    if (bleActive) {
+      setBleActive(false);
+      setNearestBeacon(null);
+      lastRecordedBeaconId.current = null;
+      speak('Detecção BLE desativada.');
+    } else {
+      speak('A iniciar detecção de beacons Bluetooth…');
+      setBleActive(true);
+    }
+  };
 
   const selectBeacon = async (beacon: Beacon) => {
     if (!simMode) {
@@ -110,7 +220,7 @@ export default function MapScreen() {
     try {
       const msg = JSON.parse(event.nativeEvent.data);
       if (msg.type === 'beacon' && simMode) {
-        await selectBeacon({ id: msg.id, name: msg.name, latitude: msg.lat, longitude: msg.lon, floor: msg.floor });
+        await selectBeacon({ id: msg.id, number: 0, name: msg.name, latitude: msg.lat, longitude: msg.lon, floor: msg.floor });
       }
     } catch {}
   };
@@ -124,7 +234,7 @@ export default function MapScreen() {
       const ok = await startBeaconGeofencing(beacons);
       if (ok) {
         setGeofenceActive(true);
-        speak('Detecção de proximidade ativada. Receberá uma notificação quando se aproximar de um beacon.');
+        speak('Detecção de proximidade ativada.');
       } else {
         Alert.alert(t('error'), 'Permissão de localização em segundo plano negada.');
       }
@@ -141,34 +251,63 @@ export default function MapScreen() {
         <View style={s.headerBtns}>
           <TouchableOpacity
             style={[s.simBtn, simMode && s.simBtnActive]}
-            onPress={() => {
-              setSimMode((v) => {
-                const next = !v;
-                speak(next ? 'Modo de simulação ativado. Selecione um beacon.' : 'Modo de simulação desativado.');
-                return next;
-              });
-            }}
+            onPress={() => setSimMode((v) => {
+              const next = !v;
+              speak(next ? 'Modo de simulação ativado.' : 'Modo de simulação desativado.');
+              return next;
+            })}
             accessibilityRole="button"
-            accessibilityLabel={simMode ? 'Desativar modo de simulação' : 'Ativar modo de simulação'}
+            accessibilityLabel={simMode ? 'Desativar simulação' : 'Ativar simulação'}
             accessibilityState={{ selected: simMode }}
           >
             <Text style={[s.simBtnText, simMode && s.simBtnTextActive]}>
-              {simMode ? '📍 ON' : '📍 Simular'}
+              {simMode ? '📍 ON' : '📍 Sim.'}
             </Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[s.simBtn, bleActive && s.bleBtnActive]}
+            onPress={toggleBLE}
+            accessibilityRole="button"
+            accessibilityLabel={bleActive ? 'Desativar BLE' : 'Ativar detecção BLE de beacons'}
+            accessibilityState={{ selected: bleActive }}
+          >
+            <Text style={[s.simBtnText, bleActive && s.bleBtnTextActive]}>
+              {bleActive ? '📶 ON' : '📶 BLE'}
+            </Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[s.simBtn, geofenceActive && s.simBtnActive]}
             onPress={toggleGeofence}
             accessibilityRole="button"
-            accessibilityLabel={geofenceActive ? 'Desativar detecção de proximidade' : 'Ativar detecção de proximidade de beacons'}
+            accessibilityLabel={geofenceActive ? 'Desativar geofencing' : 'Ativar geofencing'}
             accessibilityState={{ selected: geofenceActive }}
           >
             <Text style={[s.simBtnText, geofenceActive && s.simBtnTextActive]}>
-              {geofenceActive ? '📡 ON' : '📡 Prox.'}
+              {geofenceActive ? '📡 ON' : '📡'}
             </Text>
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* BLE position banner */}
+      {bleActive && (
+        <View style={[s.simBanner, nearestBeacon ? s.bleBannerActive : s.bleBannerScanning]}
+          accessibilityLiveRegion="polite">
+          <Text style={s.simBannerText}>
+            {nearestBeacon
+              ? `📍 Está perto de: ${nearestBeacon.name} — Piso ${nearestBeacon.floor}`
+              : '📶 À procura de beacons Bluetooth…'}
+          </Text>
+        </View>
+      )}
+
+      {simMode && !bleActive && (
+        <View style={s.simBanner} accessibilityLiveRegion="polite">
+          <Text style={s.simBannerText}>{t('beaconSimSubtitle')}</Text>
+        </View>
+      )}
 
       {/* Floor filter */}
       <View style={s.floorRow} accessibilityRole="tablist">
@@ -190,30 +329,33 @@ export default function MapScreen() {
         ))}
       </View>
 
-      {simMode && (
-        <View style={s.simBanner} accessibilityLiveRegion="polite">
-          <Text style={s.simBannerText}>{t('beaconSimSubtitle')}</Text>
-        </View>
-      )}
-
       {loading ? (
         <View style={s.center}>
           <ActivityIndicator color="#2f80ed" size="large" accessibilityLabel="A carregar mapa" />
         </View>
       ) : isBlind ? (
-        /* Accessible list mode for blind users — replaces the WebView */
         <ScrollView style={s.listContainer} accessibilityLabel="Lista de beacons">
+          {nearestBeacon && bleActive && (
+            <View style={s.bleCurrentBeacon} accessibilityLiveRegion="assertive">
+              <Text style={s.bleCurrentText}>📍 Está perto de: {nearestBeacon.name}</Text>
+              <Text style={s.bleCurrentFloor}>Piso {nearestBeacon.floor}</Text>
+            </View>
+          )}
           <Text style={s.listTitle} accessibilityRole="header">
             {filteredBeacons.length} beacon{filteredBeacons.length !== 1 ? 's' : ''} disponíve{filteredBeacons.length !== 1 ? 'is' : 'l'}
           </Text>
           {filteredBeacons.map((beacon) => (
             <TouchableOpacity
               key={beacon.id}
-              style={[s.beaconRow, !simMode && s.beaconRowDisabled]}
+              style={[
+                s.beaconRow,
+                !simMode && s.beaconRowDisabled,
+                bleActive && nearestBeacon?.id === beacon.id && s.beaconRowNearest,
+              ]}
               onPress={() => selectBeacon(beacon)}
               disabled={locating}
               accessibilityRole="button"
-              accessibilityLabel={`${beacon.name}, piso ${beacon.floor}. ${simMode ? 'Toque para marcar a sua localização aqui.' : 'Ative o modo de simulação para selecionar.'}`}
+              accessibilityLabel={`${beacon.name}, piso ${beacon.floor}.${nearestBeacon?.id === beacon.id ? ' Está aqui.' : ''} ${simMode ? 'Toque para marcar localização.' : ''}`}
               accessibilityState={{ disabled: !simMode || locating }}
             >
               <View>
@@ -222,6 +364,8 @@ export default function MapScreen() {
               </View>
               {locating ? (
                 <ActivityIndicator color="#2f80ed" />
+              ) : bleActive && nearestBeacon?.id === beacon.id ? (
+                <Text style={s.hereLabel}>📍</Text>
               ) : (
                 <Text style={s.beaconArrow} accessibilityElementsHidden>›</Text>
               )}
@@ -263,14 +407,16 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
   },
   title: { color: '#333', fontSize: 20, fontWeight: '700', flex: 1 },
-  headerBtns: { flexDirection: 'row', gap: 8 },
+  headerBtns: { flexDirection: 'row', gap: 6 },
   simBtn: {
     borderWidth: 2, borderColor: '#2f80ed', borderRadius: 20,
     paddingHorizontal: 10, paddingVertical: 5,
   },
-  simBtnActive: { backgroundColor: '#2f80ed', borderColor: '#2f80ed' },
+  simBtnActive: { backgroundColor: '#2f80ed' },
+  bleBtnActive: { backgroundColor: '#27ae60', borderColor: '#27ae60' },
   simBtnText: { color: '#2f80ed', fontSize: 12, fontWeight: '600' },
   simBtnTextActive: { color: '#fff' },
+  bleBtnTextActive: { color: '#fff' },
   floorRow: {
     flexDirection: 'row', backgroundColor: '#fff', paddingHorizontal: 12,
     paddingVertical: 8, gap: 6, borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
@@ -283,6 +429,8 @@ const s = StyleSheet.create({
   floorText: { fontSize: 12, color: '#2f80ed', fontWeight: '600' },
   floorTextActive: { color: '#fff' },
   simBanner: { backgroundColor: '#EBF5FB', padding: 8, alignItems: 'center' },
+  bleBannerScanning: { backgroundColor: '#FEF9E7' },
+  bleBannerActive: { backgroundColor: '#EAFAF1' },
   simBannerText: { color: '#2f80ed', fontSize: 12, fontWeight: '500' },
   map: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -294,9 +442,17 @@ const s = StyleSheet.create({
     borderLeftWidth: 4, borderLeftColor: '#2f80ed',
   },
   beaconRowDisabled: { borderLeftColor: '#ddd', opacity: 0.6 },
+  beaconRowNearest: { borderLeftColor: '#27ae60', backgroundColor: '#EAFAF1' },
   beaconName: { fontSize: 15, fontWeight: '600', color: '#333' },
   beaconFloor: { fontSize: 13, color: '#999', marginTop: 2 },
   beaconArrow: { fontSize: 22, color: '#ccc' },
+  hereLabel: { fontSize: 22 },
+  bleCurrentBeacon: {
+    backgroundColor: '#EAFAF1', borderRadius: 12, padding: 14, marginBottom: 12,
+    borderLeftWidth: 4, borderLeftColor: '#27ae60',
+  },
+  bleCurrentText: { fontSize: 15, fontWeight: '700', color: '#1e8449' },
+  bleCurrentFloor: { fontSize: 13, color: '#27ae60', marginTop: 2 },
   locatingOverlay: {
     position: 'absolute', bottom: 24, alignSelf: 'center',
     backgroundColor: 'rgba(47,128,237,0.9)', borderRadius: 24,
