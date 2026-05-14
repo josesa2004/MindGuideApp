@@ -3,6 +3,28 @@ import {
   ActivityIndicator, FlatList, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
+
+// ── Per-user colour ───────────────────────────────────────────────────────────
+const USER_PALETTE = [
+  '#e74c3c', // red
+  '#27ae60', // green
+  '#8e44ad', // purple
+  '#e67e22', // orange
+  '#16a085', // teal
+  '#c0392b', // dark red
+  '#2980b9', // blue (distinct from beacon blue)
+  '#d35400', // burnt orange
+  '#1abc9c', // mint
+  '#8e44ad', // violet
+];
+
+function userColor(userId: string): string {
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = (hash * 31 + userId.charCodeAt(i)) >>> 0;
+  }
+  return USER_PALETTE[hash % USER_PALETTE.length];
+}
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
@@ -50,6 +72,7 @@ export default function AdminPositionsScreen() {
       name: u.userName,
       floor: u.floor,
       time: new Date(u.recordedAt).toLocaleTimeString('pt-PT'),
+      color: userColor(u.userId),
     }));
 
     webRef.current.injectJavaScript(`
@@ -60,9 +83,9 @@ export default function AdminPositionsScreen() {
       const users = ${JSON.stringify(userMarkers)};
       users.forEach(u => {
         const m = L.circleMarker([u.lat, u.lon], {
-          radius: 10, color: '#e74c3c', fillColor: '#e74c3c', fillOpacity: 0.9
+          radius: 12, color: u.color, fillColor: u.color, fillOpacity: 0.9, weight: 2
         }).addTo(window._userLayer);
-        m.bindPopup('<b>' + u.name + '</b><br>Piso ' + u.floor + '<br>' + u.time);
+        m.bindPopup('<b style="color:' + u.color + '">' + u.name + '</b><br>Piso ' + u.floor + '<br>' + u.time);
       });
       true;
     `);
@@ -142,7 +165,7 @@ window._userLayer = L.layerGroup().addTo(map);
             contentContainerStyle={{ padding: 12 }}
             renderItem={({ item }) => (
               <View style={s.row} accessibilityLabel={`${item.userName} no piso ${item.floor}`}>
-                <View style={s.dot} />
+                <View style={[s.dot, { backgroundColor: userColor(item.userId) }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={s.userName}>{item.userName}</Text>
                   <Text style={s.userMeta}>
@@ -186,7 +209,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f5f5f5',
   },
-  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#e74c3c' },
+  dot: { width: 12, height: 12, borderRadius: 6 },
   userName: { fontWeight: '600', color: '#333', fontSize: 13 },
   userMeta: { color: '#888', fontSize: 11 },
   coords: { fontSize: 10, color: '#bbb' },
