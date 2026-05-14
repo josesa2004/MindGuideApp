@@ -13,6 +13,37 @@ import { startBLEScanning, stopBLEScanning, DetectedBeacon } from '../../src/ser
 import { useAuthStore } from '../../src/store/authStore';
 
 type RouteItem = { id: string; name: string; roomName?: string; roomCode?: string; floor?: number; isActive?: boolean };
+
+// ── Version-picking logic ──────────────────────────────────────────────────────
+// Route names follow the pattern "Origin → Destination (vN)".
+// Routes without a (vN) suffix are the main/primary version (treated as v1).
+// The API only returns active routes, so if the main version is deactivated
+// (blocked by admin or reported as unavailable) the next version appears instead.
+const VERSION_RE = /\s*\(v(\d+)\)\s*$/i;
+
+function baseName(name: string): string {
+  return name.replace(VERSION_RE, '').trim();
+}
+
+function versionOf(name: string): number {
+  const m = VERSION_RE.exec(name);
+  return m ? parseInt(m[1], 10) : 1;
+}
+
+// From a full list of active routes, return only the best (lowest version)
+// route per unique base name — all alternatives are hidden unless the
+// primary was deactivated and removed by the API.
+function pickBestRoutes(routes: RouteItem[]): RouteItem[] {
+  const groups = new Map<string, RouteItem>();
+  for (const r of routes) {
+    const key = baseName(r.name);
+    const existing = groups.get(key);
+    if (!existing || versionOf(r.name) < versionOf(existing.name)) {
+      groups.set(key, r);
+    }
+  }
+  return Array.from(groups.values());
+}
 type RouteStep = { order: number; beaconId?: string; instruction: string; elevationChange?: number };
 type RouteDetail = {
   id: string;
@@ -79,7 +110,7 @@ export default function RoutesScreen() {
   useEffect(() => {
     getRoutes(params.roomId)
       .then((data) => {
-        const list = Array.isArray(data) ? data : [];
+        const list = pickBestRoutes(Array.isArray(data) ? data : []);
         setRoutes(list);
         if (isBlind) {
           const msg = list.length === 0
@@ -189,7 +220,7 @@ export default function RoutesScreen() {
             <Text style={s.backText}>← {t('back')}</Text>
           </TouchableOpacity>
           <View style={s.titleRow}>
-            <Text style={s.title} numberOfLines={1} accessibilityRole="header">{selected.name}</Text>
+            <Text style={s.title} numberOfLines={1} accessibilityRole="header">{baseName(selected.name)}</Text>
             {isWheelchair && (
               <View style={s.a11yBadge} accessibilityLabel="Rota acessível para cadeirantes">
                 <Text style={s.a11yBadgeText}>♿ Acessível</Text>
@@ -355,7 +386,7 @@ export default function RoutesScreen() {
               accessibilityLabel={`Rota ${r.name}${r.roomName ? `, sala ${r.roomName}` : ''}${r.floor ? `, piso ${r.floor}` : ''}. Toque para iniciar navegação.`}
             >
               <View style={s.routeInfo}>
-                <Text style={s.routeName}>{r.name}</Text>
+                <Text style={s.routeName}>{baseName(r.name)}</Text>
                 {r.roomName
                   ? <Text style={s.routeSub}>{r.roomCode} — {r.roomName}</Text>
                   : null}
