@@ -8,8 +8,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import * as Speech from 'expo-speech';
 import { useSpeech } from '../../src/hooks/useSpeech';
-import { getRoutes, getRoute } from '../../src/api/navigation';
-import { recordLocation } from '../../src/api/navigation';
+import { getRoutes, getRoute, getNodes, recordLocation } from '../../src/api/navigation';
+import { startBLEScanning, stopBLEScanning, DetectedBeacon } from '../../src/services/bleScanner';
 import { useAuthStore } from '../../src/store/authStore';
 
 type RouteItem = { id: string; name: string; roomName?: string; roomCode?: string; floor?: number; isActive?: boolean };
@@ -73,6 +73,8 @@ export default function RoutesScreen() {
   const [autoAdvance, setAutoAdvance] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(true);
   const autoRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // beaconNumber → step index for the active route
+  const beaconStepMap = useRef<Map<number, number>>(new Map());
 
   useEffect(() => {
     getRoutes(params.roomId)
@@ -90,43 +92,59 @@ export default function RoutesScreen() {
       .finally(() => setLoadingList(false));
   }, [params.roomId]);
 
-  // Auto-advance timer: simulates proximity detection — advances one step every ~9s
+  // BLE-driven auto-advance: advances step when the user physically reaches the next beacon
   useEffect(() => {
     if (!selected || !autoAdvance) {
-      if (autoRef.current) clearInterval(autoRef.current);
+      stopBLEScanning();
       return;
     }
-    autoRef.current = setInterval(() => {
+
+    startBLEScanning((detected: DetectedBeacon) => {
+      const targetStep = beaconStepMap.current.get(detected.number);
+      if (targetStep === undefined) return;
+
       setCurrentStep((prev) => {
+        if (targetStep <= prev) return prev; // never go backwards
         const steps = selected.steps ?? [];
-        if (prev >= steps.length) {
-          clearInterval(autoRef.current!);
-          return prev;
-        }
-        const next = prev + 1;
-        const instruction = next < steps.length
-          ? steps[next].instruction
-          : t('arrived');
-        if (ttsEnabled) speakNav(`Passo ${next + 1}: ${instruction}`);
-        // Report location for this step's beacon
-        const beaconId = steps[prev]?.beaconId;
+        const instruction = steps[targetStep]?.instruction;
+        if (ttsEnabled && instruction) speakNav(`Passo ${targetStep + 1}: ${instruction}`);
+        const beaconId = steps[targetStep]?.beaconId;
         if (beaconId) {
-          recordLocation({ beaconId, latitude: 41.1785, longitude: -8.6080, floor: selected.floor })
+          recordLocation({ beaconId, latitude: 41.1785, longitude: -8.608, floor: selected.floor })
             .catch(() => {});
         }
-        return next;
+        return targetStep;
       });
-    }, 9000);
-    return () => { if (autoRef.current) clearInterval(autoRef.current!); };
+    }).then((ok) => {
+      if (!ok) {
+        setAutoAdvance(false);
+        Alert.alert('Bluetooth', 'Não foi possível iniciar BLE. Verifique se o Bluetooth está activado.');
+      }
+    });
+
+    return () => stopBLEScanning();
   }, [autoAdvance, selected, ttsEnabled]);
 
   const openRoute = async (id: string, name: string) => {
     setLoadingDetail(true);
     if (ttsEnabled) speakNav(`A carregar rota ${name}.`);
     try {
-      const data = await getRoute(id);
+      const [data, nodes] = await Promise.all([getRoute(id), getNodes()]);
       setSelected(data);
       setCurrentStep(0);
+
+      // Build beaconNumber → stepIndex map so BLE detection can advance steps
+      const beaconById = new Map<string, number>();
+      for (const b of (nodes?.beacons ?? [])) beaconById.set(b.id, b.number);
+      const stepMap = new Map<number, number>();
+      (data.steps ?? []).forEach((step: RouteStep, idx: number) => {
+        if (step.beaconId) {
+          const num = beaconById.get(step.beaconId);
+          if (num !== undefined) stepMap.set(num, idx);
+        }
+      });
+      beaconStepMap.current = stepMap;
+
       if (data.steps?.length > 0 && ttsEnabled) {
         speakNav(`Rota ${data.name}. ${data.steps.length} passos. Passo 1: ${data.steps[0].instruction}`);
       }
@@ -197,13 +215,13 @@ export default function RoutesScreen() {
             />
           </View>
           <View style={s.controlItem}>
-            <Text style={s.controlLabel} accessibilityElementsHidden>📍 Auto-avançar</Text>
+            <Text style={s.controlLabel} accessibilityElementsHidden>📶 BLE Nav</Text>
             <Switch
               value={autoAdvance}
               onValueChange={setAutoAdvance}
-              thumbColor={autoAdvance ? '#2f80ed' : '#ccc'}
-              trackColor={{ true: '#90bef5', false: '#e0e0e0' }}
-              accessibilityLabel="Activar avanço automático de passos"
+              thumbColor={autoAdvance ? '#27ae60' : '#ccc'}
+              trackColor={{ true: '#82e0aa', false: '#e0e0e0' }}
+              accessibilityLabel="Activar navegação automática por beacon Bluetooth"
               accessibilityState={{ checked: autoAdvance }}
             />
           </View>

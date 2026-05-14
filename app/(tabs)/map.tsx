@@ -50,9 +50,9 @@ function buildLeafletHtml(beacons: Beacon[], floor: number): string {
 <style>
   html,body,#map{margin:0;padding:0;height:100%;width:100%;}
   @keyframes pulse {
-    0%   { transform: scale(1);   opacity: 1; }
-    50%  { transform: scale(1.4); opacity: 0.6; }
-    100% { transform: scale(1);   opacity: 1; }
+    0%   { opacity: 1;    }
+    50%  { opacity: 0.35; }
+    100% { opacity: 1;    }
   }
   .pulse-marker { animation: pulse 1.5s infinite ease-in-out; }
 </style>
