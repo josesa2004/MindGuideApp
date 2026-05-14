@@ -34,6 +34,19 @@ async function scheduleDiaryReminder() {
   });
 }
 
+export async function fireTestNotification() {
+  await Notifications.cancelScheduledNotificationAsync('diary-reminder');
+  await Notifications.scheduleNotificationAsync({
+    identifier: 'diary-reminder',
+    content: {
+      title: 'MindGuide — Diário',
+      body: 'Tens ocorrências para registar? Abre a app e adiciona uma entrada ao teu diário.',
+      data: { screen: 'diary' },
+    },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 3, repeats: false },
+  });
+}
+
 export default function RootLayout() {
   const { isLoading, isAuthenticated, loadFromStorage, notificationsEnabled } = useAuthStore();
 

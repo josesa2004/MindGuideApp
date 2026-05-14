@@ -9,6 +9,7 @@ import i18n from '../../src/i18n';
 import { useAuthStore } from '../../src/store/authStore';
 import { authApi } from '../../src/api/auth';
 import * as Notifications from 'expo-notifications';
+import { fireTestNotification } from '../_layout';
 
 const MOBILITY_OPTIONS = [
   { key: 'mobilityNone', value: 0 },
@@ -151,6 +152,16 @@ export default function ProfileScreen() {
               trackColor={{ false: '#ddd', true: '#90bef5' }}
             />
           </View>
+          <TouchableOpacity
+            style={s.testNotifBtn}
+            onPress={async () => {
+              await fireTestNotification();
+              Alert.alert('', 'Notificação enviada em 3 segundos.');
+            }}
+            accessibilityLabel="Testar notificação de diário"
+          >
+            <Text style={s.testNotifText}>🔔 Testar notificação</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Personal tools */}
@@ -262,6 +273,8 @@ const s = StyleSheet.create({
     paddingVertical: 14,
   },
   rowLabel: { fontSize: 15, color: '#333' },
+  testNotifBtn: { paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#f0f0f0', alignItems: 'center' },
+  testNotifText: { color: '#2f80ed', fontSize: 14, fontWeight: '600' },
   toggleBtn: {
     borderWidth: 2, borderColor: '#2f80ed', borderRadius: 20,
     paddingHorizontal: 14, paddingVertical: 6,
